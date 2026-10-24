@@ -43,17 +43,18 @@ A concept page (levels 1 to 5) has these `##` sections, in this order. Add `###`
 6. `## Interview tips`. What to say, common traps, and the follow-up questions to expect.
 7. `## Further reading`. Links you opened and confirmed.
 
-A case study (level 6) has these `##` sections, in this order.
+A case study (level 6) follows Hello Interview's [delivery framework](https://www.hellointerview.com/learn/system-design/in-a-hurry/delivery). It reads as a mock interview. It builds a simple working design first, then hardens it. It has these `##` sections, in this order.
 
-1. `## TL;DR`
-2. `## Requirements`. Functional and non-functional, as two lists.
-3. `## Capacity estimates`
-4. `## Core entities and API`
-5. `## High-level design`. With a Mermaid diagram.
-6. `## Deep dives`
-7. `## On Azure`. A reference architecture as a Mermaid diagram labelled with Azure service names, plus a table mapping each component to its service.
-8. `## Interview tips`
-9. `## Further reading`
+1. `## Understanding the problem`. What the product is and what makes it hard.
+2. `## Functional requirements`. Three or four "Users should be able to..." statements, then a **Below the line** list of what you leave out and why.
+3. `## Non-functional requirements`. Three to five quantified qualities specific to this system, then **Below the line**. There is no capacity section. Do the arithmetic inline, at the point where a number changes a decision.
+4. `## Core entities`. A short list of nouns.
+5. `## API`. One endpoint per functional requirement.
+6. `## High-level design`. One numbered `###` per functional requirement (`### 1) Users can shorten a URL`). Each one has a Mermaid diagram that extends the previous one. A pipeline system may open with `### Data flow`, which needs no diagram.
+7. `## Deep dives`. One `###` per hard problem, framed by a non-functional requirement. Each has at least two `#### Bad solution: <name>`, `#### Good solution: <name>`, or `#### Great solution: <name>` headings in that order, ending on Good or Great. Every solution has an `**Approach.**` paragraph and a `**Challenges.**` paragraph.
+8. `## On Azure`. The final design on Azure. A Mermaid diagram labelled with Azure service names, plus a table mapping each component to its service.
+9. `## What is expected at each level`. Exactly `### Mid-level`, `### Senior`, and `### Staff+`, in that order.
+10. `## Further reading`
 
 ## Rules
 

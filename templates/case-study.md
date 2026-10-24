@@ -4,37 +4,41 @@ description: One sentence about the system the reader designs.
 sidebar_position: 1
 ---
 
-## TL;DR
+## Understanding the problem
 
-<!-- Summarize the proposed design. -->
+<!-- What the product is and why it is hard, in a short paragraph or two. -->
 
-## Requirements
+## Functional requirements
 
-<!-- Write separate functional and non-functional requirement lists. -->
+<!-- Three or four "Users should be able to..." statements, then a **Below the line** list of what is out of scope and why. -->
 
-## Capacity estimates
+## Non-functional requirements
 
-<!-- Show assumptions, arithmetic, units, and sources for external limits. -->
+<!-- Three to five quantified "The system should..." statements tied to this product, then **Below the line**. Do math only where it changes a decision. -->
 
-## Core entities and API
+## Core entities
 
-<!-- Define the data model and the requests clients make. -->
+<!-- A short list of nouns. Fields come later, next to the store that holds them. -->
+
+## API
+
+<!-- One endpoint per functional requirement. The user comes from the auth token, never the body. -->
 
 ## High-level design
 
-<!-- Explain the architecture and include a Mermaid diagram. -->
+<!-- One ### per functional requirement, numbered, each with a Mermaid diagram that grows the previous one. Add an optional ### Data flow first for pipelines. -->
 
 ## Deep dives
 
-<!-- Work through the hardest design decisions and their trade-offs. -->
+<!-- One ### per hard problem, framed by a non-functional requirement. Inside each, #### Bad solution: / Good solution: / Great solution: headings, each with **Approach.** and **Challenges.** paragraphs. -->
 
 ## On Azure
 
-<!-- Include a Mermaid architecture with Azure service labels and a component-to-service table. -->
+<!-- The final design on Azure: a Mermaid architecture with Azure service labels and a component-to-service table. -->
 
-## Interview tips
+## What is expected at each level
 
-<!-- Name common traps and likely follow-up questions. -->
+<!-- ### Mid-level, ### Senior, ### Staff+ -->
 
 ## Further reading
 
