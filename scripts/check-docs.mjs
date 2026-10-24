@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
-import {resolve} from 'node:path';
+import {posix, resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {fromMarkdown} from 'mdast-util-from-markdown';
 import {parseCurriculum, markdownSections, sectionHeadings} from './curriculum.mjs';
@@ -129,7 +129,7 @@ export function checkDoc({
 }
 
 export async function checkProject({registrySource, files}, {strict = false} = {}) {
-  const levels = parseCurriculum(registrySource);
+  const levels = parseCurriculum(registrySource).map((level, order) => ({...level, order}));
   const diagnostics = [];
   const diagrams = [];
   const templates = new Map();
@@ -157,14 +157,32 @@ export async function checkProject({registrySource, files}, {strict = false} = {
       diagnostics.push(...checkBannedTerms(path, source));
     }
     if (!/^docs\/.*\.mdx?$/.test(path)) continue;
+    const level = levels.find(({folder}) => path.startsWith(`${folder}/`));
+    const links = [];
+    const definitions = new Map();
     const visit = (node) => {
       if (node.type === 'code' && node.lang === 'mermaid') {
         diagrams.push({path, line: node.position.start.line, source: node.value});
       }
+      if (node.type === 'link' || node.type === 'linkReference') links.push(node);
+      if (node.type === 'definition') definitions.set(node.identifier, node.url);
       node.children?.forEach(visit);
     };
     visit(fromMarkdown(source));
-    const level = levels.find(({folder}) => path.startsWith(`${folder}/`));
+    if (level && level.number !== 6 && level.folder !== 'docs/04-azure') {
+      for (const link of links) {
+        const url = link.url ?? definitions.get(link.identifier);
+        if (!url || /^(?:[a-z][a-z\d+.-]*:|\/)/i.test(url)) continue;
+        const destination = url.split(/[?#]/)[0];
+        if (!destination.endsWith('.md')) continue;
+        const targetPath = posix.join(posix.dirname(path), destination);
+        const target = levels.find(({folder}) => targetPath.startsWith(`${folder}/`));
+        if (target && target.folder !== 'docs/04-azure' && target.order > level.order) {
+          diagnostics.push(error(path, link.position.start.line,
+            `Link to "${url}" goes to a higher curriculum level (${target.label}).`));
+        }
+      }
+    }
     if (/^docs\/\d{2}-[^/]+\//.test(path) && !registry.has(path)) {
       diagnostics.push(error(path, 1, 'Doc file is not registered in the curriculum.'));
     }

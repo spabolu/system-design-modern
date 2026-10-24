@@ -44,6 +44,9 @@ const registrySource = `## Curriculum
 | Level | Folder | Pages, in sidebar order |
 | --- | --- | --- |
 | 1. Fundamentals | \`docs/01-fundamentals/\` | \`first\`, \`second\` |
+| 2. Building blocks | \`docs/02-building-blocks/\` | \`block\` |
+| 3. Patterns | \`docs/03-patterns/\` | \`pattern\` |
+| 4. Architecting on Azure | \`docs/04-azure/\` | \`azure\` |
 | 5. Advanced | \`docs/05-advanced/\` | \`advanced\` |
 | 6. Case studies | \`docs/06-case-studies/\` | \`case\` |
 
@@ -59,6 +62,9 @@ function project() {
       ['docs/intro.md', `${frontMatter}\nIntroduction.\n`],
       ['docs/01-fundamentals/first.md', page()],
       ['docs/01-fundamentals/second.md', page().replace('sidebar_position: 1', 'sidebar_position: 2')],
+      ['docs/02-building-blocks/block.md', page()],
+      ['docs/03-patterns/pattern.md', page()],
+      ['docs/04-azure/azure.md', page()],
       ['docs/05-advanced/advanced.md', page()],
       ['docs/06-case-studies/case.md', page(caseStudy, ['High-level design', 'On Azure'])],
     ]),
@@ -102,6 +108,67 @@ test('Mermaid examples nested inside code fences are not parsed', async () => {
   const fixture = project();
   fixture.files.set('docs/intro.md',
     `${frontMatter}\n\`\`\`\`markdown\n\`\`\`mermaid\nnot a diagram\n\`\`\`\n\`\`\`\`\n`);
+  assert.deepEqual(await checkProject(fixture), []);
+});
+
+for (const [from, to, forbidden] of [
+  ['01-fundamentals/first', '../02-building-blocks/block.md', true],
+  ['01-fundamentals/first', '../04-azure/azure.md', false],
+  ['03-patterns/pattern', '../05-advanced/advanced.md#details', true],
+  ['06-case-studies/case', '../05-advanced/advanced.md', false],
+  ['04-azure/azure', '../06-case-studies/case.md', false],
+  ['intro', '06-case-studies/case.md', false],
+  ['03-patterns/pattern', '../01-fundamentals/first.md', false],
+  ['01-fundamentals/first', 'second.md', false],
+]) {
+  test(`link levels ${forbidden ? 'reject' : 'allow'} ${from} linking to ${to}`, async () => {
+    const fixture = project();
+    const path = `docs/${from}.md`;
+    const source = fixture.files.get(path);
+    fixture.files.set(path, `${source}\n[Next page](${to})\n`);
+    const diagnostics = await checkProject(fixture);
+    assert.equal(diagnostics.length, forbidden ? 1 : 0, JSON.stringify(diagnostics));
+    if (forbidden) {
+      assert.deepEqual(diagnostics[0], {
+        path,
+        line: source.split('\n').length + 1,
+        severity: 'error',
+        message: `Link to "${to}" goes to a higher curriculum level (${
+          to.includes('02-building-blocks') ? '2. Building blocks' : '5. Advanced'}).`,
+      });
+    }
+  });
+}
+
+test('link levels resolve reference links and ignore fenced and inline code examples', async () => {
+  const fixture = project();
+  const path = 'docs/01-fundamentals/first.md';
+  fixture.files.set(path, `${page()}
+\`\`\`markdown
+[Example](../05-advanced/advanced.md)
+\`\`\`
+~~~markdown
+[Example](../05-advanced/advanced.md)
+~~~
+\`[Example](../05-advanced/advanced.md)\`
+[Advanced][next]
+
+[next]: ../05-advanced/advanced.md "Advanced topic"
+`);
+  const diagnostics = await checkProject(fixture);
+  assert.equal(diagnostics.length, 1, JSON.stringify(diagnostics));
+  hasMessage(diagnostics, /higher curriculum level.*5\. Advanced/);
+});
+
+test('link levels follow the registry order rather than the numeric folder prefix', async () => {
+  const fixture = project();
+  const rows = fixture.registrySource.split('\n');
+  const fundamentals = rows.findIndex((row) => row.startsWith('| 1.'));
+  const advanced = rows.findIndex((row) => row.startsWith('| 5.'));
+  [rows[fundamentals], rows[advanced]] = [rows[advanced], rows[fundamentals]];
+  fixture.registrySource = rows.join('\n');
+  fixture.files.set('docs/01-fundamentals/first.md',
+    `${page()}\n[Earlier in registry](../05-advanced/advanced.md)\n`);
   assert.deepEqual(await checkProject(fixture), []);
 });
 
@@ -303,7 +370,7 @@ test('CLI prints path and line diagnostics and exits according to severity', () 
     const normal = spawnSync(process.execPath, [script], {cwd: root, encoding: 'utf8'});
     assert.equal(normal.status, 0, normal.stderr);
     assert.match(normal.stdout, /docs\/01-fundamentals\/first.md:7: warning: Unfinished page/);
-    assert.match(normal.stdout, /5 docs checked: 0 errors, 1 warnings/);
+    assert.match(normal.stdout, /8 docs checked: 0 errors, 1 warnings/);
     const strict = spawnSync(process.execPath, [script, '--strict'], {cwd: root, encoding: 'utf8'});
     assert.equal(strict.status, 1, strict.stderr);
     assert.match(strict.stdout, /first.md:7: error: Unfinished page/);
