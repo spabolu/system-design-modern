@@ -100,7 +100,7 @@ Each generic block has a managed Azure equivalent. Later levels give each its ow
 
 **Zones and regions shape the topology.** An Azure region contains availability zones, which are separate datacenter groups usually within 100 km of each other, with inter-zone round trips under about 2 ms. Zone-redundant deployment survives a datacenter failure at almost no latency cost. Surviving a full region outage takes a second region, and cross-region round trips run tens to hundreds of milliseconds. That gap forces the consistency decisions covered later in this section.
 
-**Tiers remove options.** A SKU is not only a price. Azure Managed Redis Balanced B0 and B1 don't support active geo-replication, and API Management only offers availability zones on Premium and Premium v2. Check which tier includes the feature your design depends on before you price it.
+**Tiers remove options.** A SKU is not only a price. Azure Managed Redis Balanced B0 and B1 don't support active geo-replication, and API Management only offers availability zones on Standard v2, Premium v2, and Premium (classic). On the v2 tiers you turn on zone redundancy when you create the instance in a region with zones, and you can't change it later. Check which tier includes the feature your design depends on before you price it.
 
 **Gotcha: choosing services before requirements.** A design that opens with "we'll use Cosmos DB on AKS" has skipped the step that says whether it needs either. The Azure Architecture Center's compute flowchart is a good guard because it asks about your workload before it names a service.
 
@@ -118,5 +118,6 @@ Each generic block has a managed Azure equivalent. Later levels give each its ow
 - [Azure Architecture Center: architecture styles](https://learn.microsoft.com/azure/architecture/guide/architecture-styles/)
 - [Choose an Azure compute service](https://learn.microsoft.com/azure/architecture/guide/technology-choices/compute-decision-tree)
 - [Azure availability zones overview](https://learn.microsoft.com/azure/reliability/availability-zones-overview)
+- [Reliability in Azure API Management](https://learn.microsoft.com/azure/reliability/reliability-api-management)
 - [Hello Interview: System Design in a Hurry](https://www.hellointerview.com/learn/system-design/in-a-hurry/introduction)
 - [The Coding Gopher: The Top 10 Most Common System Design Questions, Explained](https://thecodinggopher.substack.com/p/the-top-10-most-common-system-design)

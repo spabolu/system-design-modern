@@ -85,7 +85,7 @@ Redundancy only helps if traffic moves away from the failed copy. That takes hea
 
 **Zones first.** Zones sit within about 100 km of each other with round trips under about 2 ms, so synchronous replication across them is affordable. Zone-redundant resources fail over for you. With zonal resources, deploying copies in several zones and failing over between them is your job. Most workloads should be zone-redundant before they consider a second region.
 
-**SKU decisions that change availability.** Several tiers lack zone support or an SLA entirely. API Management offers availability zones only on Premium and Premium v2, and its Developer tier has no SLA. The Basic SKU of Azure Load Balancer and the v1 SKU of Application Gateway are retired, so new designs use Load Balancer Standard and Application Gateway v2, both of which support zones. For data, choosing storage redundancy (LRS, ZRS, GRS, GZRS) is choosing your RPO. Geo-redundant options copy to the secondary region asynchronously, so a regional loss can drop recent writes.
+**SKU decisions that change availability.** Several tiers lack zone support or an SLA entirely. API Management offers availability zones only on Standard v2, Premium v2, and Premium (classic), and its Developer tier has no SLA. The Basic SKU of Azure Load Balancer and the v1 SKU of Application Gateway are retired, so new designs use Load Balancer Standard and Application Gateway v2, both of which support zones. For data, choosing storage redundancy (LRS, ZRS, GRS, GZRS) is choosing your RPO. Geo-redundant options copy to the secondary region asynchronously, so a regional loss can drop recent writes.
 
 **Composite SLA on Azure.** Each Azure service publishes its own SLA, and your application's availability is at most the product of the SLAs of everything on its critical path. Write the request path down, look up each service's current SLA, and multiply. Microsoft offers higher SLAs for some multi-region configurations. For example, Learn states that multi-region Azure Cosmos DB accounts get 99.999% read and write availability. Recovery points are published too. A Cosmos DB account in one region has an RPO under 240 minutes for a region-wide outage. Add a second region with a single write region, and the RPO drops under 15 minutes at Session, Consistent prefix, or Eventual consistency, and to zero with Strong.
 
@@ -109,6 +109,7 @@ Redundancy only helps if traffic moves away from the failed copy. That takes hea
 - [Azure Storage redundancy](https://learn.microsoft.com/azure/storage/common/storage-redundancy)
 - [Azure SQL Database active geo-replication](https://learn.microsoft.com/azure/azure-sql/database/active-geo-replication-overview)
 - [Azure Cosmos DB global distribution](https://learn.microsoft.com/azure/cosmos-db/distribute-data-globally)
+- [Reliability in Azure API Management](https://learn.microsoft.com/azure/reliability/reliability-api-management)
 - [Site Reliability Engineering: service level objectives](https://sre.google/sre-book/service-level-objectives/)
 
 See also [scalability](./scalability.md) for how replicas add capacity as well as redundancy.

@@ -45,7 +45,7 @@ sequenceDiagram
 4. The client uploads straight to storage.
 5. Storage emits an event when the object exists. A worker validates it (size, content type, checksum, malware scan) and flips the row to `uploaded`.
 
-The server chooses the path so a client cannot overwrite someone else's file or pick a name that collides. The URL carries the minimum permission (write, not read or delete) and the shortest lifetime that covers a slow upload. Validate size and type after the upload, when the event arrives, because the client controls the bytes it sends no matter what it declared.
+The server chooses the path so a client cannot overwrite someone else's file or pick a name that collides. The URL carries the minimum permission (write, not read or delete) and the shortest lifetime that covers a slow upload. Validate size and type after the upload, when the event arrives, because the client controls the bytes it sends no matter what it declared. The URL also keeps working until it expires, so the client can overwrite the object after it passes validation. Validate one immutable version of the object, record which version passed, and serve only that version, never the writable path.
 
 ### Chunked, parallel, resumable uploads
 
@@ -105,7 +105,7 @@ Thumbnails, transcoding, text extraction, and virus scanning take seconds to hou
 | Durability | Storage redundancy | ZRS keeps synchronous copies across three or more zones in a region. GZRS adds an asynchronous copy in a second region. |
 | Cost over time | Access tiers and lifecycle management | Hot, Cool (30-day minimum), Cold (90-day minimum), and Archive (180-day minimum, retrieval in hours). Move old uploads down automatically. |
 
-**SAS design.** Issue a user delegation SAS per upload, scoped to the single blob path with create and write permissions and an expiry of 15 to 60 minutes. Uncommitted blocks stay on the server and are garbage-collected after a week with no Put Block or Put Block List activity, which gives clients a generous resume window. Refresh the SAS when a resumed upload needs more time rather than issuing a long-lived one up front.
+**SAS design.** Issue a user delegation SAS per upload, scoped to the single blob path with create and write permissions and an expiry of 15 to 60 minutes. Uncommitted blocks stay on the server and are garbage-collected after a week with no Put Block or Put Block List activity, which gives clients a generous resume window. Refresh the SAS when a resumed upload needs more time rather than issuing a long-lived one up front. Write permission also lets the holder overwrite the committed blob until the SAS expires, so turn on blob versioning. The worker validates one version ID and records it on the metadata row, and download SAS tokens point at that version (signed resource `bv`). An overwrite creates a new version that nobody serves until it passes validation.
 
 [Cost optimization](../04-azure/cost-optimization.md) covers how blob access tiers fit the rest of the bill.
 
@@ -125,6 +125,8 @@ Thumbnails, transcoding, text extraction, and virus scanning take seconds to hou
 - [Hello Interview: Handling Large Blobs](https://www.hellointerview.com/learn/system-design/patterns/large-blobs)
 - [Valet Key pattern](https://learn.microsoft.com/azure/architecture/patterns/valet-key)
 - [Grant limited access with shared access signatures](https://learn.microsoft.com/azure/storage/common/storage-sas-overview)
+- [Create a user delegation SAS](https://learn.microsoft.com/rest/api/storageservices/create-user-delegation-sas)
+- [Blob versioning](https://learn.microsoft.com/azure/storage/blobs/versioning-overview)
 - [Put Block List](https://learn.microsoft.com/rest/api/storageservices/put-block-list)
 - [Scalability and performance targets for Blob Storage](https://learn.microsoft.com/azure/storage/blobs/scalability-targets)
 - [Reacting to Blob Storage events](https://learn.microsoft.com/azure/storage/blobs/storage-blob-event-overview)

@@ -46,7 +46,7 @@ sequenceDiagram
 
 The API validates the request, writes a job record (`queued`), sends a small message with the job ID, and returns `202 Accepted` with a link to the job's status. Keep the message small: the job ID and the parameters, or a pointer to them. Large inputs go to blob storage, and the message carries the reference (the claim-check pattern).
 
-Writing the job row and sending the message are two separate operations. If the process crashes between them you get a job that never runs, or a message for a job that does not exist. Either have the worker tolerate a missing row, have a sweeper re-enqueue old `queued` jobs, or use a [transactional outbox](./multi-step-processes.md).
+Writing the job row and sending the message are two separate operations. If the process crashes after the insert and before the send, the row sits in `queued` with no message, and no worker ever sees it. Close the gap with a sweeper that re-enqueues `queued` jobs older than a few minutes, or with a [transactional outbox](./multi-step-processes.md) that records the message in the same transaction as the row.
 
 ### Workers and delivery
 

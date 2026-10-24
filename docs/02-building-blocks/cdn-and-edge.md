@@ -112,6 +112,8 @@ Azure Front Door Standard and Premium are the CDN and global HTTP entry point. M
 
 **No shared mid-tier cache.** Learn states that each Front Door edge site manages its own cache. Expect some origin traffic even for popular objects, and size the origin for misses from many sites at once after a deploy or purge.
 
+**Language variants need the URL.** With caching on, Front Door doesn't forward `Accept`, `Accept-Charset`, or `Accept-Language` to the origin, so the origin can't choose a language from the header and a `Vary` header has nothing to split on. The cache key settings cover only the query string. Put the language in the path or in a query parameter the cache key includes (`/fr/pricing` or `?lang=fr`), or turn caching off for that route.
+
 **Operations.** A configuration change can take up to 15 minutes to propagate, and a purge completes within about 10 minutes with at most 100 URLs per request. Plan releases around versioned URLs so you rarely need either.
 
 [Networking and security](../04-azure/networking-and-security.md) covers the WAF and Private Link setup that pairs with Front Door Premium.

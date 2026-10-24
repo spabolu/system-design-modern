@@ -99,7 +99,7 @@ Microsoft's own comparison sums it up as Event Grid for reactive event routing, 
 
 [Messaging choices](../04-azure/messaging-choices.md) covers the tier limits and delivery guarantees behind that split.
 
-**Gotcha.** The Cosmos DB change feed in its default latest version mode shows only the most recent version of each item. If a document is updated twice in quick succession, a projector may see only the second update. For event sourcing, model every change as a new item (append-only, never update), or use all versions and deletes mode. Deletes and TTL expirations also appear only in all versions and deletes mode.
+**Gotcha.** The Cosmos DB change feed in its default latest version mode shows only the most recent version of each item. If a document is updated twice in quick succession, a projector may see only the second update. For event sourcing, model every change as a new item (append-only, never update). All versions and deletes mode shows every intermediate update, but you can read only the changes inside the account's continuous backup retention period. It can feed a projector, not serve as the event store. Deletes and TTL expirations also appear only in all versions and deletes mode.
 
 **Gotcha.** Event Hubs keeps events for a bounded window, so it is not an event store by itself. Use Capture or a database for long-term history and treat the hub as the distribution layer.
 
@@ -120,5 +120,6 @@ Microsoft's own comparison sums it up as Event Grid for reactive event routing, 
 - [Materialized View pattern](https://learn.microsoft.com/azure/architecture/patterns/materialized-view)
 - [Choose between Azure messaging services](https://learn.microsoft.com/azure/service-bus-messaging/compare-messaging-services)
 - [Change feed design patterns in Azure Cosmos DB](https://learn.microsoft.com/azure/cosmos-db/change-feed-design-patterns)
+- [Change feed modes in Azure Cosmos DB](https://learn.microsoft.com/azure/cosmos-db/change-feed-modes)
 - [Event Hubs quotas and limits](https://learn.microsoft.com/azure/event-hubs/event-hubs-quotas)
 - [The Coding Gopher: Understanding Strong vs. Eventual Consistency](https://thecodinggopher.substack.com/p/understanding-strong-vs-eventual)
