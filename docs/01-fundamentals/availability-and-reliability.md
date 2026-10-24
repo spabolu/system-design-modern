@@ -30,7 +30,7 @@ Availability numbers also hide data loss. A database that fails over in 30 secon
 | 99.99% | 52.6 minutes | 4.32 minutes | 1.01 minutes |
 | 99.999% | 5.26 minutes | 25.9 seconds | 6.05 seconds |
 
-Downtime is (1 − availability) × period. The monthly column matches the Well-Architected Framework's reliability metrics table. Read the right-hand columns as an operations budget. At 99.99%, one slow deploy rollback can spend the whole month. At 99.999%, no human can respond in time, so recovery must be automatic.
+Downtime is $(1 - \text{availability}) \times \text{period}$. The monthly column matches the Well-Architected Framework's reliability metrics table. Read the right-hand columns as an operations budget. At 99.99%, one slow deploy rollback can spend the whole month. At 99.999%, no human can respond in time, so recovery must be automatic.
 
 ### SLI, SLO, SLA
 
@@ -53,9 +53,9 @@ flowchart LR
     end
 ```
 
-**In series**, every component must work, so availabilities multiply. A regional stack with an edge at 99.99%, an app tier at 99.95%, and a database at 99.99% gives 0.9999 × 0.9995 × 0.9999 ≈ 99.93%. That is lower than any single part. The Well-Architected Framework states the same rule. Its example is 99.95% × 99.99999% ≈ 99.95%, which shows that a near-perfect dependency costs almost nothing while a weak one sets the ceiling.
+**In series**, every component must work, so availabilities multiply. A regional stack with an edge at 99.99%, an app tier at 99.95%, and a database at 99.99% gives $0.9999 \times 0.9995 \times 0.9999 \approx 99.93\%$. That is lower than any single part. The Well-Architected Framework states the same rule. Its example is $99.95\% \times 99.99999\% \approx 99.95\%$, which shows that a near-perfect dependency costs almost nothing while a weak one sets the ceiling.
 
-**In parallel**, the system fails only when every copy fails, so unavailabilities multiply. Two independent regional stacks at 99.93% each give 1 − (0.0007 × 0.0007) ≈ 99.99995%. The global router sits in series in front of both, so the total is about 0.9999 × 0.9999995 ≈ 99.99%. The router now sets the ceiling.
+**In parallel**, the system fails only when every copy fails, so unavailabilities multiply. Two independent regional stacks at 99.93% each give $1 - (0.0007 \times 0.0007) \approx 99.99995\%$. The global router sits in series in front of both, so the total is about $0.9999 \times 0.9999995 \approx 99.99\%$. The router now sets the ceiling.
 
 These numbers are illustrations, not Azure SLAs. Real results come out lower, for three reasons.
 

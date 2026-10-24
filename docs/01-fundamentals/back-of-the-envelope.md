@@ -7,7 +7,7 @@ sidebar_position: 5
 ## TL;DR
 
 - Estimate to choose between designs. The questions that matter are yes-or-no ones, such as whether the data fits in memory, whether one database can take the writes, and whether one partition can take the hottest key.
-- Round hard. One day is about 10^5 seconds, so 1 million events per day is about 10 per second, and you only need the right power of ten.
+- Round hard. One day is about $10^5$ seconds, so 1 million events per day is about 10 per second, and you only need the right power of ten.
 - Average rate is total per day divided by 86,400. Size for the peak, which you state as a multiple of the average.
 - Storage is items per day times bytes per item times retention, then times the number of copies you keep.
 - On Azure, translate the result into the unit each service sells and limits (RU/s, throughput units, requests per second per storage account, IOPS per disk), and check per-partition limits as well as totals.
@@ -37,12 +37,12 @@ Work from users to rates to resources, and write each step down so the interview
 
 | Quantity | Exact | Use in estimates |
 | --- | --- | --- |
-| Seconds per day | 86,400 | ~10^5 |
-| Seconds per month | ~2.6 million | ~2.5 × 10^6 |
-| Seconds per year | ~31.5 million | ~3 × 10^7 |
+| Seconds per day | 86,400 | ~$10^5$ |
+| Seconds per month | ~2.6 million | ~$2.5 \times 10^6$ |
+| Seconds per year | ~31.5 million | ~$3 \times 10^7$ |
 | 1 million per day | ~11.6 per second | ~10 per second |
-| 1 billion per day | ~11,600 per second | ~10^4 per second |
-| KB, MB, GB, TB, PB | 10^3, 10^6, 10^9, 10^12, 10^15 bytes | Each step is ×1,000 |
+| 1 billion per day | ~11,600 per second | ~$10^4$ per second |
+| KB, MB, GB, TB, PB | $10^3$, $10^6$, $10^9$, $10^{12}$, $10^{15}$ bytes | Each step is $\times 1{,}000$ |
 | 1 Gbps | 125 MB/s | ~100 MB/s |
 
 ### Latency reference
@@ -95,15 +95,30 @@ Assumptions, stated up front:
 - An original photo averages 2 MB. Post metadata is about 1 KB.
 - Peak traffic is 3 times the daily average (an assumption to confirm with real traffic data).
 
-**Write rate.** 10 million / 86,400 s ≈ 116 posts/s on average, about 350/s at peak. One relational database handles this comfortably, so writes don't force partitioning by themselves.
+**Write rate.** $10\ \text{million} / 86{,}400\ \text{s} \approx 116\ \text{posts/s}$ on average, about 350/s at peak. One relational database handles this comfortably, so writes don't force partitioning by themselves.
 
-**Feed read rate.** 1 billion / 86,400 s ≈ 11,600 loads/s on average, about 35,000/s at peak. Suppose each load is one point read of a precomputed feed document of about 1 KB (20 post IDs). In Cosmos DB with Session consistency, that is about 35,000 RU/s at peak. A physical partition serves at most 10,000 RU/s, so the container needs at least 4 physical partitions, and the partition key must spread load across users. With Strong consistency the same reads cost about twice as much, about 70,000 RU/s.
+**Feed read rate.** $1\ \text{billion} / 86{,}400\ \text{s} \approx 11{,}600\ \text{loads/s}$ on average, about 35,000/s at peak. Suppose each load is one point read of a precomputed feed document of about 1 KB (20 post IDs). In Cosmos DB with Session consistency, that is about 35,000 RU/s at peak. A physical partition serves at most 10,000 RU/s, so the container needs at least 4 physical partitions, and the partition key must spread load across users. With Strong consistency the same reads cost about twice as much, about 70,000 RU/s.
 
-**Image requests.** 1 billion loads × 20 photos = 20 billion image fetches/day ≈ 231,000/s on average. One storage account's default limit is 40,000 requests/s. Serving images straight from Blob Storage overshoots that about 6 times on average and about 17 times at peak. So the design needs an edge cache, such as Azure Front Door, so that most image requests never reach the storage account.
+**Image requests.**
 
-**Storage.** 10 million × 2 MB = 20 TB/day of photos, or about 7.3 PB/year. One storage account's default 5 PiB (about 5.6 PB) fills in about nine months, so plan for several accounts from the start. Metadata is 10 million × 1 KB = 10 GB/day, about 3.7 TB/year, which is modest.
+$$
+\begin{aligned}
+\text{fetches/day} &= 1\ \text{billion loads} \times 20\ \text{photos} = 20\ \text{billion} \\
+\text{average} &\approx 231{,}000\ \text{fetches/s}
+\end{aligned}
+$$
 
-**Upload bandwidth.** 20 TB/day / 86,400 s ≈ 231 MB/s ≈ 1.9 Gbps average, about 5.6 Gbps at peak. That is well under one account's 60 Gbps default ingress in a major region.
+One storage account's default limit is 40,000 requests/s. Serving images straight from Blob Storage overshoots that about 6 times on average and about 17 times at peak. So the design needs an edge cache, such as Azure Front Door, so that most image requests never reach the storage account.
+
+**Storage.** $10\ \text{million} \times 2\ \text{MB} = 20\ \text{TB/day}$ of photos, or about 7.3 PB/year. One storage account's default 5 PiB (about 5.6 PB) fills in about nine months, so plan for several accounts from the start. Metadata is $10\ \text{million} \times 1\ \text{KB} = 10\ \text{GB/day}$, about 3.7 TB/year, which is modest.
+
+**Upload bandwidth.**
+
+$$
+\text{average} = \frac{20\ \text{TB}}{86{,}400\ \text{s}} \approx 231\ \text{MB/s} \approx 1.9\ \text{Gbps}
+$$
+
+At peak it is about 5.6 Gbps. That is well under one account's 60 Gbps default ingress in a major region.
 
 Four of those five numbers changed the design. They showed that writes don't need partitioning, that feed reads need at least four Cosmos DB physical partitions, that images need an edge cache, and that photos need more than one storage account. The fifth confirmed that one account can take the upload traffic.
 
@@ -137,7 +152,7 @@ Later levels cover sharding and partitioning, caching, and CDNs, which are the u
 ## Interview tips
 
 - Say your assumptions before you compute. The interviewer can then correct an input instead of disputing your result.
-- Round to one significant figure and use powers of ten. "About 10^4 reads per second" is precise enough.
+- Round to one significant figure and use powers of ten. "About $10^4$ reads per second" is precise enough.
 - Compute only what changes a decision, and say what it changed. "35,000 RU/s at peak, so at least four physical partitions."
 - Always check the hottest key against the per-partition limit. Totals rarely break a design. Skew does.
 - Keep the [scalability](./scalability.md) and [availability](./availability-and-reliability.md) consequences in view. An estimate that says "one server" also says "one point of failure".
