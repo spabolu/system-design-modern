@@ -113,7 +113,7 @@ The customer can ask for a person at any time, for requirement 3.
 ```json
 POST /v1/conversations/{conversationId}/handoff
 { "reason": "customer_request" }
--> 202 { "ticketId": "tk_908", "position": 4 }
+-> 202 { "ticketId": "tk_912", "position": 4 }
 ```
 
 Approvers with the `refund-approver` role use two console endpoints, for requirement 2.
@@ -423,7 +423,7 @@ This serves requirement 4.
 
 #### Great solution: Typed notes per customer, treated as untrusted
 
-**Approach.** Build each note from structured fields, such as order IDs, action outcomes, the handoff reason, and the resolution code the person set, plus one model-written sentence. Keep `/customerId` as the partition key for cost and locality, but don't trust it for isolation. A Cosmos DB query without a partition key filter fans out to all physical partitions ([query a container](https://learn.microsoft.com/azure/cosmos-db/how-to-query-container)), so the key is just another filter someone can forget. Put the guarantee in code. Read notes only through one memory repository that takes the customer ID from the sign-in token and always sets it as the partition key. It has no method that queries without one, and a test fails any cross-partition query on `notes`. At conversation start, take notes from the last 12 months that share an order ID with the message, plus the two or three nearest by vector. Run them through the injection check as documents, quote them in the prompt as history, and re-read anything live through a tool. Notes expire under the retention policy and are deleted with the account.
+**Approach.** Build each note from structured fields, such as order IDs, action outcomes, the handoff reason, and the resolution code the person set, plus one model-written sentence. Keep `/customerId` as the partition key for cost and locality, but don't trust it for isolation. A Cosmos DB query without a partition key filter fans out to all physical partitions ([query a container](https://learn.microsoft.com/azure/cosmos-db/how-to-query-container)), so the key is just another filter someone can forget. Put the guarantee in code. Read notes only through one memory repository that takes the customer ID from the sign-in token and always sets it as the partition key. It is the only code that holds a client for the `notes` container, it has no method that queries without a partition key, and a test fails any cross-partition query on `notes`. At conversation start, take notes from the last 12 months that share an order ID with the message, plus the two or three nearest by vector. Run them through the injection check as documents, quote them in the prompt as history, and re-read anything live through a tool. Notes expire under the retention policy and are deleted with the account.
 
 ```mermaid
 flowchart LR
