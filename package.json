@@ -36,6 +36,7 @@
     "@docusaurus/types": "3.10.2",
     "@types/react": "^19.0.0",
     "jsdom": "26.1.0",
+    "mdast-util-from-markdown": "2.1.0",
     "typescript": "~6.0.2"
   },
   "browserslist": {
