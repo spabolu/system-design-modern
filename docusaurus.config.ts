@@ -1,4 +1,6 @@
 import {themes as prismThemes} from 'prism-react-renderer';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
@@ -34,17 +36,29 @@ const config: Config = {
       },
     ],
   ],
+  stylesheets: [
+    {
+      href: 'https://cdn.jsdelivr.net/npm/katex@0.16.47/dist/katex.min.css',
+      type: 'text/css',
+      integrity: 'sha384-nH0MfJ44wi1dd7w6jinlyBgljjS8EJAh2JBoRad8a3VDw2K69vfaaqm4WnR+gXtA',
+      crossorigin: 'anonymous',
+    },
+  ],
   presets: [
     [
       'classic',
       {
         docs: {
           sidebarPath: './sidebars.ts',
+          remarkPlugins: [remarkMath],
+          rehypePlugins: [rehypeKatex],
           numberPrefixParser: false,
           showLastUpdateTime: true,
           editUrl: 'https://github.com/spabolu/system-design-modern/tree/main/',
         },
         blog: {
+          remarkPlugins: [remarkMath],
+          rehypePlugins: [rehypeKatex],
           blogTitle: 'Notes',
           blogDescription: 'Dated notes on system design developments and their place in the curriculum.',
           routeBasePath: 'notes',

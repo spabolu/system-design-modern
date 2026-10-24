@@ -7,7 +7,7 @@ sidebar_position: 8
 ## TL;DR
 
 - A call over the network has three outcomes, not two: it succeeded, it failed, or you don't know. Timeouts land in the third bucket, and the only way forward is to try again.
-- Retrying is safe only if the operation is idempotent: doing it twice has the same effect as doing it once. "Set balance to $50" is idempotent. "Add $50" is not.
+- Retrying is safe only if the operation is idempotent: doing it twice has the same effect as doing it once. "Set balance to \$50" is idempotent. "Add \$50" is not.
 - Make non-idempotent operations safe with an idempotency key. The client generates a unique key per logical action, and the server stores the key with the result so a repeat returns the stored result instead of acting again.
 - Queues and event systems deliver at least once. Consumers must deduplicate by message ID or make their writes naturally idempotent.
 - On Azure, use Azure Service Bus duplicate detection for the broker side, Azure Cosmos DB conditional creates and unique keys for the store side, and TTL to expire old keys.

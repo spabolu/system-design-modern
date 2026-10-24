@@ -14,7 +14,7 @@ sidebar_position: 7
 
 ## Why it matters
 
-Inside one database, a transaction makes a multi-step change all-or-nothing. Split the data across services and that guarantee disappears. Picture checkout: inventory reserves the item, payments charges $80, shipping fails because the address is undeliverable. Now the customer is charged for an order that will never ship, and the item is held for nobody. Without a plan, someone fixes that by hand.
+Inside one database, a transaction makes a multi-step change all-or-nothing. Split the data across services and that guarantee disappears. Picture checkout: inventory reserves the item, payments charges \$80, shipping fails because the address is undeliverable. Now the customer is charged for an order that will never ship, and the item is held for nobody. Without a plan, someone fixes that by hand.
 
 The classic answer, two-phase commit, asks every participant to prepare and then commit together. It needs every database and broker to support the protocol, it holds locks while it waits for the slowest participant, and a coordinator failure at the wrong moment leaves participants stuck holding those locks. Third-party APIs such as a payment provider will never join your transaction. So most systems accept that the process is eventually consistent and make the intermediate states explicit and recoverable.
 
