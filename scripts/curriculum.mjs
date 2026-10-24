@@ -34,6 +34,7 @@ export function sectionHeadings(source) {
 
 export function markdownSections(source) {
   const sections = [];
+  const ancestors = [];
   let fence;
   for (const [index, line] of source.split('\n').entries()) {
     const marker = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
@@ -45,13 +46,24 @@ export function markdownSections(source) {
     } else if (marker) {
       fence = marker[1];
     } else {
-      const heading = line.match(/^ {0,3}##[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/);
+      const heading = line.match(/^ {0,3}(#{2,4})[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/);
       if (heading) {
-        sections.push({heading: heading[1], line: index + 1, body: []});
+        const depth = heading[1].length;
+        while (ancestors.length && ancestors.at(-1).depth >= depth) ancestors.pop();
+        for (const ancestor of ancestors) ancestor.body.push(line);
+        const section = {heading: heading[2], depth, line: index + 1, body: [], children: []};
+        if (depth === 2) {
+          sections.push(section);
+        } else if (ancestors.length) {
+          ancestors.at(-1).children.push(section);
+        } else {
+          continue;
+        }
+        ancestors.push(section);
         continue;
       }
     }
-    sections.at(-1)?.body.push(line);
+    for (const ancestor of ancestors) ancestor.body.push(line);
   }
   return sections;
 }

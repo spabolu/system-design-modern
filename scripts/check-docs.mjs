@@ -59,8 +59,25 @@ function sectionContent(lines) {
   };
 }
 
+const caseStudySectionRules = {
+  'High-level design'(section, report) {
+    const steps = section.children.filter(({depth}) => depth === 3);
+    if (steps.length === 0) {
+      report(section, 'Section "## High-level design" needs at least one ### heading.');
+    }
+    for (const [index, step] of steps.entries()) {
+      if (step.heading === 'Data flow') {
+        if (index !== 0) report(step, '"### Data flow" must be the first ### in High-level design.');
+      } else if (!sectionContent(step.body).mermaid) {
+        report(step, `High-level design "${step.heading}" needs a Mermaid fence (\`\`\`mermaid).`);
+      }
+    }
+  },
+};
+
 export function checkDoc({
   path, source, expectedPosition, expectedHeadings, diagramSections = [],
+  pageType = 'concept',
 }, {strict = false} = {}) {
   const diagnostics = [];
   const frontMatter = source.match(frontMatterPattern);
@@ -111,7 +128,8 @@ export function checkDoc({
   const body = source.replace(frontMatterPattern, (match) => match.replace(/[^\n]/g, ''));
   const sections = markdownSections(body);
   const actual = sections.map(({heading}) => heading);
-  if (JSON.stringify(actual) !== JSON.stringify(expectedHeadings)) {
+  const headingsMatch = JSON.stringify(actual) === JSON.stringify(expectedHeadings);
+  if (!headingsMatch) {
     diagnostics.push(error(path, sections[0]?.line ?? 1,
       `Expected ## headings in order [${expectedHeadings.join(', ')}]; found [${actual.join(', ')}].`));
   }
@@ -124,6 +142,10 @@ export function checkDoc({
     }
     if (diagramSections.includes(section.heading) && !content.mermaid) {
       diagnostics.push(error(path, section.line, `Section "## ${section.heading}" needs a Mermaid fence (\`\`\`mermaid).`));
+    }
+    if (pageType === 'case-study' && headingsMatch) {
+      caseStudySectionRules[section.heading]?.(section,
+        (heading, message) => diagnostics.push(error(path, heading.line, message)));
     }
   }
   return diagnostics;
@@ -193,7 +215,8 @@ export async function checkProject({registrySource, files}, {strict = false} = {
       source,
       expectedPosition: registry.get(path),
       expectedHeadings: level ? templates.get(templateName) : undefined,
-      diagramSections: level?.number === 6 ? ['High-level design', 'On Azure'] : ['How it works'],
+      diagramSections: level?.number === 6 ? ['On Azure'] : ['How it works'],
+      pageType: templateName,
     }, {strict}));
   }
   const diagramDiagnostics = await Promise.all(diagrams.map(async ({path, line, source}) => {

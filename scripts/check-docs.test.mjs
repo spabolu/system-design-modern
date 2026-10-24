@@ -13,8 +13,9 @@ const concept = [
   'Interview tips', 'Further reading',
 ];
 const caseStudy = [
-  'TL;DR', 'Requirements', 'Capacity estimates', 'Core entities and API',
-  'High-level design', 'Deep dives', 'On Azure', 'Interview tips', 'Further reading',
+  'Understanding the problem', 'Functional requirements', 'Non-functional requirements',
+  'Core entities', 'API', 'High-level design', 'Deep dives', 'On Azure',
+  'What is expected at each level', 'Further reading',
 ];
 const frontMatter = '---\ntitle: Test page\ndescription: A useful description.\nsidebar_position: 1\n---\n';
 const diagram = '\n```mermaid\nflowchart LR\n  Client --> Server\n```\n';
@@ -22,6 +23,24 @@ const diagram = '\n```mermaid\nflowchart LR\n  Client --> Server\n```\n';
 function page(headings = concept, diagrams = ['How it works']) {
   return frontMatter + headings.map((heading) =>
     `\n## ${heading}\n\nExplanation of ${heading}.\n${diagrams.includes(heading) ? diagram : ''}`).join('');
+}
+
+function caseStudyPage() {
+  const ladder = ['Bad solution: Scan every row', 'Good solution: Index lookups']
+    .map((heading) => `#### ${heading}\n\n**Approach.** Read the stored data.\n\n**Challenges.** Handle growth.\n`)
+    .join('\n');
+  const bodies = {
+    'High-level design': `### 1) Users can read records\n\nRead the stored records.\n${diagram}`,
+    'Deep dives': `### 1) How do we keep reads fast?\n\n${ladder}\n### 2) How do we recover writes?\n\n${ladder}`,
+    'On Azure': `Use Azure services.\n${diagram}`,
+    'What is expected at each level': [
+      '### Mid-level\n\nExplain the working design.',
+      '### Senior\n\nExplain the trade-offs.',
+      '### Staff+\n\nExplain the operating model.',
+    ].join('\n\n'),
+  };
+  return frontMatter + caseStudy.map((heading) =>
+    `\n## ${heading}\n\n${bodies[heading] ?? `Explanation of ${heading}.`}\n`).join('');
 }
 
 function check(source, options = {}) {
@@ -32,6 +51,17 @@ function check(source, options = {}) {
     expectedHeadings: concept,
     diagramSections: ['How it works'],
   }, options);
+}
+
+function checkCaseStudy(source) {
+  return checkDoc({
+    path: 'docs/06-case-studies/case.md',
+    source,
+    expectedPosition: 1,
+    expectedHeadings: caseStudy,
+    diagramSections: ['On Azure'],
+    pageType: 'case-study',
+  });
 }
 
 function hasMessage(diagnostics, pattern, severity = 'error') {
@@ -66,14 +96,87 @@ function project() {
       ['docs/03-patterns/pattern.md', page()],
       ['docs/04-azure/azure.md', page()],
       ['docs/05-advanced/advanced.md', page()],
-      ['docs/06-case-studies/case.md', page(caseStudy, ['High-level design', 'On Azure'])],
+      ['docs/06-case-studies/case.md', caseStudyPage()],
     ]),
   };
 }
 
 test('complete concept and case-study pages pass', async () => {
   assert.deepEqual(check(page()), []);
+  assert.deepEqual(checkCaseStudy(caseStudyPage()), []);
   assert.deepEqual(await checkProject(project()), []);
+});
+
+for (const {name, change, heading, message} of [
+  {
+    name: 'each high-level design step needs its own diagram',
+    change: (source) => source.replace('## Deep dives',
+      '### 2) Users can write records\n\nStore the record.\n\n## Deep dives'),
+    heading: '### 2) Users can write records',
+    message: /High-level design.*2\) Users can write records.*Mermaid fence/,
+  },
+  {
+    name: 'Data flow must be the first high-level design step',
+    change: (source) => source.replace('## Deep dives',
+      '### Data flow\n\nFollow a record through the pipeline.\n\n## Deep dives'),
+    heading: '### Data flow',
+    message: /Data flow.*first ###/,
+  },
+  {
+    name: 'high-level design needs at least one level-three heading',
+    change: (source) => source.replace('### 1) Users can read records\n', ''),
+    heading: '## High-level design',
+    message: /High-level design.*at least one ###/,
+  },
+]) {
+  test(name, () => {
+    const source = change(caseStudyPage());
+    const diagnostics = checkCaseStudy(source);
+    assert.equal(diagnostics.length, 1, JSON.stringify(diagnostics));
+    assert.equal(diagnostics[0].path, 'docs/06-case-studies/case.md');
+    assert.equal(diagnostics[0].line, source.split('\n').indexOf(heading) + 1);
+    assert.equal(diagnostics[0].severity, 'error');
+    assert.match(diagnostics[0].message, message);
+  });
+}
+
+test('Data flow can be first and does not need a diagram', () => {
+  const source = caseStudyPage().replace('## High-level design\n',
+    '## High-level design\n\n### Data flow\n\nFollow a record through the pipeline.\n');
+  assert.deepEqual(checkCaseStudy(source), []);
+});
+
+test('case-study headings inside fenced examples do not create subsections', () => {
+  for (const fence of ['````', '~~~~']) {
+    const source = caseStudyPage().replace('## Deep dives', [
+      `${fence}markdown`,
+      '### This is not another design step',
+      '#### Not a rung',
+      '## Not a section',
+      fence,
+      '',
+      '## Deep dives',
+    ].join('\n'));
+    assert.deepEqual(checkCaseStudy(source), []);
+  }
+});
+
+test('a fenced Mermaid example does not count as a design step diagram', () => {
+  const source = caseStudyPage().replace(diagram, `\n\`\`\`\`markdown\n${diagram}\n\`\`\`\`\n`);
+  hasMessage(checkCaseStudy(source), /High-level design.*Mermaid fence/);
+});
+
+test('concept pages do not use case-study subsection rules', () => {
+  const source = page().replace('Explanation of Trade-offs.', [
+    '### Data flow',
+    '',
+    'A concept subsection needs no diagram or solution ladder.',
+    '',
+    '#### Other considerations',
+    '',
+    'Concept pages may use other subsection headings.',
+  ].join('\n'));
+  assert.deepEqual(check(source), []);
 });
 
 test('Mermaid syntax errors report the fence line without rejecting valid diagrams', async () => {
@@ -249,8 +352,11 @@ test('a Mermaid example inside another code fence does not count as a diagram', 
 for (const missing of ['High-level design', 'On Azure']) {
   test(`case studies need a Mermaid fence in ${missing}`, async () => {
     const fixture = project();
+    const source = caseStudyPage();
+    const offset = source.indexOf(`## ${missing}`);
+    const fence = source.indexOf(diagram, offset);
     fixture.files.set('docs/06-case-studies/case.md',
-      page(caseStudy, ['High-level design', 'On Azure'].filter((heading) => heading !== missing)));
+      source.slice(0, fence) + source.slice(fence + diagram.length));
     hasMessage(await checkProject(fixture), new RegExp(`${missing}.*Mermaid fence`));
   });
 }
