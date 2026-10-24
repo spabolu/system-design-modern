@@ -128,7 +128,7 @@ Azure API Management (APIM) sits in front of your APIs to handle keys, quotas, t
 | Idempotency key store | Azure Cosmos DB with TTL | Use the key as the item id; a second create with the same id in the same partition fails, and TTL deletes old keys |
 | Duplicate messages | Azure Service Bus duplicate detection | Drops a message whose MessageId was seen within the window (default 10 minutes, up to 7 days); Standard and Premium only |
 
-**Tier decision.** Developer has no SLA and is for non-production use. Availability zones exist only on Premium and Premium v2, and deploying one APIM instance across multiple regions is a Premium (classic) feature. If the gateway is on the critical path for a zone-redundant or multi-region design, budget for Premium. On a tier without zones, the gateway is the one box that a single zone failure takes down.
+**Tier decision.** Developer has no SLA and is for non-production use. Availability zones exist only on Standard v2, Premium v2, and Premium (classic), and the v2 tiers take the zone setting only when you create the instance. Deploying one APIM instance across multiple regions is a Premium (classic) feature. If the gateway is on the critical path for a zone-redundant design, budget for Standard v2 or above, and for a multi-region design, budget for Premium (classic). On a tier without zones, the gateway is the one box that a single zone failure takes down.
 
 **Gotcha: gRPC through APIM depends on the tier.** APIM passes gRPC through on the self-hosted gateway. On the managed classic gateway it is in preview, and only for classic instances created from January 2026 onward. The v2 tiers and Consumption don't support it. Teams that pick Standard v2 for cost and later add a gRPC service find there is no path through the gateway they bought. Decide on gRPC before you pick the tier.
 
@@ -150,6 +150,7 @@ Later levels cover API gateways as a building block, and idempotency and retries
 - [Azure Architecture Center: RESTful web API design](https://learn.microsoft.com/azure/architecture/best-practices/api-design)
 - [API Management gateways overview](https://learn.microsoft.com/azure/api-management/api-management-gateways-overview)
 - [API Management versions](https://learn.microsoft.com/azure/api-management/api-management-versions)
+- [Reliability in Azure API Management](https://learn.microsoft.com/azure/reliability/reliability-api-management)
 - [Service Bus duplicate detection](https://learn.microsoft.com/azure/service-bus-messaging/duplicate-detection)
 - [IETF draft: the Idempotency-Key HTTP header field](https://datatracker.ietf.org/doc/draft-ietf-httpapi-idempotency-key-header/)
 - [Introduction to gRPC](https://grpc.io/docs/what-is-grpc/introduction/)

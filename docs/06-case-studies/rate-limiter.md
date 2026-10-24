@@ -166,7 +166,7 @@ A global exact limit requires every check to agree across regions, which costs a
 ```mermaid
 flowchart LR
   C[Clients] --> FD["Azure Front Door (WAF rate-limit rules)"]
-  FD --> APIM["API Management Premium v2 (rate-limit-by-key)"]
+  FD --> APIM["API Management Standard v2 (rate-limit-by-key)"]
   APIM --> GW["Gateway on Container Apps"]
   GW --> AMR["Azure Managed Redis (Compute Optimized)"]
   GW --> SVC["Backend services on Container Apps"]
@@ -177,7 +177,7 @@ flowchart LR
 | Component | Azure service | Tier or setting, and why |
 | --- | --- | --- |
 | Anonymous flood control | Azure Front Door WAF policy | Custom rate-limit rule, grouped by socket IP. Works on Standard and Premium. Fixed window of one or five minutes, so use it only for coarse thresholds. |
-| Per-subscription limits | Azure API Management | `rate-limit-by-key` keyed on subscription or a JWT claim. Premium v2 for availability zones; Standard v2 if a single zone is acceptable. |
+| Per-subscription limits | Azure API Management | `rate-limit-by-key` keyed on subscription or a JWT claim. Standard v2, the lowest tier with availability zones. Turn on zone redundancy when you create the instance, because you can't change it later. |
 | Exact per-user token bucket | Azure Managed Redis | Compute Optimized tier (2:1 memory to vCPU), because this workload needs CPU and connections, not memory. OSS clustering policy for the highest throughput. High availability on. |
 | Gateway with limiter library | Azure Container Apps | Zone-redundant environment, HTTP scale rule, minimum 3 replicas. Or the same library inside existing services. |
 | Rule storage | Azure App Configuration | Rules as key-values, reloaded by each gateway on an interval. |
@@ -224,6 +224,7 @@ See [networking and security](../04-azure/networking-and-security.md) for WAF pl
 - [Hello Interview: Design a distributed rate limiter](https://www.hellointerview.com/learn/system-design/problem-breakdowns/distributed-rate-limiter)
 - [The Coding Gopher: Why scaling Redis is harder than you think](https://thecodinggopher.substack.com/p/why-scaling-redis-is-harder-than)
 - [API Management rate-limit-by-key policy](https://learn.microsoft.com/azure/api-management/rate-limit-by-key-policy)
+- [Reliability in Azure API Management](https://learn.microsoft.com/azure/reliability/reliability-api-management)
 - [Azure Front Door WAF rate limiting](https://learn.microsoft.com/azure/web-application-firewall/afds/waf-front-door-rate-limit)
 - [Azure Managed Redis architecture](https://learn.microsoft.com/azure/redis/architecture)
 - [Caching](../02-building-blocks/caching.md), [API gateway](../02-building-blocks/api-gateway.md), [handling contention](../03-patterns/handling-contention.md)

@@ -101,7 +101,7 @@ Most interviewers are cloud-neutral, so lead with the generic component and its 
 | Core entities | Partition key | A Cosmos DB logical partition holds at most 20 GB and 10,000 RU/s, so a per-user key works and a per-country key does not. |
 | API | Edge and gateway | Azure Front Door for global HTTP entry, and API Management when you need versioning, keys, and quotas. |
 | High-level design | Service mapping | Map each box to a managed service. The [Azure service map](../04-azure/azure-service-map.md) covers this. |
-| Deep dives | Tier and SKU | API Management offers availability zones only on Premium and Premium v2. A zone-redundant design rules out cheaper tiers. |
+| Deep dives | Tier and SKU | API Management offers availability zones only on Standard v2, Premium v2, and Premium (classic). On the v2 tiers, zone redundancy is set when you create the instance, so a zone-redundant design fixes the tier and the setting on day one. |
 
 **Gotcha: service names in place of reasoning.** Saying "Cosmos DB" doesn't answer how the data is partitioned or what consistency a reader gets. If you name an Azure service, expect follow-up questions on its limits and be ready with the partition key, the consistency level, and the tier. If you can't answer those, describe the generic component instead.
 
@@ -121,4 +121,5 @@ Most interviewers are cloud-neutral, so lead with the generic component and its 
 - [Azure application architecture fundamentals](https://learn.microsoft.com/azure/architecture/guide/)
 - [Azure Cosmos DB partitioning](https://learn.microsoft.com/azure/cosmos-db/partitioning)
 - [Azure network round-trip latency statistics](https://learn.microsoft.com/azure/networking/azure-network-latency)
+- [Reliability in Azure API Management](https://learn.microsoft.com/azure/reliability/reliability-api-management)
 - [The Coding Gopher: The Top 10 Most Common System Design Questions, Explained](https://thecodinggopher.substack.com/p/the-top-10-most-common-system-design)
