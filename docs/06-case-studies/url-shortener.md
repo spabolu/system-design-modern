@@ -190,7 +190,7 @@ The design works. Now harden it against each non-functional requirement, one pro
 
 ### 1) How do we hand out codes that never collide and can't be guessed?
 
-This serves requirement 1. A code has to be unique, short enough to type, and impossible to predict from the one before it. Six base62 characters give 62^6, about 57 billion codes, which a billion links would already fill to 1.8%. Seven give 62^7, about 3.5 trillion, so plan on seven.
+This serves requirement 1. A code has to be unique, short enough to type, and impossible to predict from the one before it. Six base62 characters give $62^6 \approx 57$ billion codes, which a billion links would already fill to 1.8%. Seven give $62^7 \approx 3.5$ trillion, so plan on seven.
 
 :::warning
 Don't design a distributed ID generator in the style of Snowflake here. That design mints time-ordered IDs on many machines at once, and this system creates 12 links a second.
