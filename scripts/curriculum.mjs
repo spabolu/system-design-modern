@@ -1,3 +1,5 @@
+import {fromMarkdown} from 'mdast-util-from-markdown';
+
 export function parseCurriculum(source) {
   const section = source.split(/^## Curriculum\s*$/m)[1]?.split(/^## /m)[0];
   if (!section) {
@@ -32,26 +34,24 @@ export function sectionHeadings(source) {
   return markdownSections(source).map(({heading}) => heading);
 }
 
-export function markdownSections(source) {
+export function markdownSections(source, document = fromMarkdown(source)) {
   const sections = [];
   const ancestors = [];
-  let fence;
-  for (const [index, line] of source.split('\n').entries()) {
-    const marker = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
-    if (fence) {
-      if (marker && marker[1][0] === fence[0] &&
-          marker[1].length >= fence.length && marker[2].trim() === '') {
-        fence = undefined;
-      }
-    } else if (marker) {
-      fence = marker[1];
-    } else {
-      const heading = line.match(/^ {0,3}(#{2,4})[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/);
+  const lines = source.split('\n');
+  const closeSection = (end) => {
+    const section = ancestors.pop();
+    section.body = lines.slice(section.line, end);
+  };
+  for (const node of document.children) {
+    const index = node.position.start.line - 1;
+    if (node.type === 'heading') {
+      const heading = lines[index].match(/^ {0,3}(#{2,4})[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/);
       if (heading) {
         const depth = heading[1].length;
-        while (ancestors.length && ancestors.at(-1).depth >= depth) ancestors.pop();
-        for (const ancestor of ancestors) ancestor.body.push(line);
-        const section = {heading: heading[2], depth, line: index + 1, body: [], children: []};
+        while (ancestors.length && ancestors.at(-1).depth >= depth) closeSection(index);
+        const section = {
+          heading: heading[2], depth, line: index + 1, body: [], children: [], paragraphs: [],
+        };
         if (depth === 2) {
           sections.push(section);
         } else if (ancestors.length) {
@@ -63,7 +63,11 @@ export function markdownSections(source) {
         continue;
       }
     }
-    for (const ancestor of ancestors) ancestor.body.push(line);
+    if (node.type === 'paragraph') {
+      const text = lines.slice(index, node.position.end.line).join('\n').trim();
+      for (const ancestor of ancestors) ancestor.paragraphs.push(text);
+    }
   }
+  while (ancestors.length) closeSection(lines.length);
   return sections;
 }
