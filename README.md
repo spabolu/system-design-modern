@@ -31,7 +31,7 @@ The explanations and diagrams are original. Topic selection and depth draw on
 
 ## Run it locally
 
-Use Node.js 22.
+Use Node.js 24 LTS or later.
 
 ```bash
 npm ci
