@@ -68,7 +68,7 @@ A block can be up to 4,000 MiB and a blob up to 50,000 blocks. The Azure SDKs do
 
 ### After the upload
 
-The commit should trigger processing, not a client callback the client might never send. Blob Storage emits a `BlobCreated` event to Event Grid, and a worker generates thumbnails, transcodes video, or scans for malware, then flips the metadata row to `ready`. Add a reconciliation job that cleans up rows stuck in `pending` and blobs with no row, because clients abandon uploads.
+The commit should trigger processing, not a client callback the client might never send. Blob Storage emits a `BlobCreated` event to Event Grid, and a worker generates thumbnails, transcodes video, or scans for malware, then flips the metadata row to `ready`. The upload SAS still allows writes until it expires, so turn on blob versioning, process one version ID, and record it on the row so downloads serve the bytes that passed the scan. Add a reconciliation job that cleans up rows stuck in `pending` and blobs with no row, because clients abandon uploads.
 
 ### Partitioning and naming
 
@@ -127,6 +127,7 @@ The secondary region in GRS or GZRS can't be read unless you fail over; RA-GRS a
 - [Introduction to Azure Blob Storage](https://learn.microsoft.com/azure/storage/blobs/storage-blobs-introduction)
 - [Valet Key pattern](https://learn.microsoft.com/azure/architecture/patterns/valet-key)
 - [Grant limited access with shared access signatures](https://learn.microsoft.com/azure/storage/common/storage-sas-overview)
+- [Blob versioning](https://learn.microsoft.com/azure/storage/blobs/versioning-overview)
 - [Access tiers for blob data](https://learn.microsoft.com/azure/storage/blobs/access-tiers-overview)
 - [Azure Storage redundancy](https://learn.microsoft.com/azure/storage/common/storage-redundancy)
 - [Scalability and performance targets for Blob Storage](https://learn.microsoft.com/azure/storage/blobs/scalability-targets)

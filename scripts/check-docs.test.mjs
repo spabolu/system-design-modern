@@ -303,6 +303,16 @@ test('concept pages do not use case-study subsection rules', () => {
   assert.deepEqual(check(source), []);
 });
 
+
+test('CRLF pages and templates pass like LF ones', async () => {
+  assert.deepEqual(check(page().replaceAll('\n', '\r\n')), []);
+  const fixture = project();
+  for (const [path, source] of fixture.files) {
+    fixture.files.set(path, source.replaceAll('\n', '\r\n'));
+  }
+  assert.deepEqual(await checkProject(fixture), []);
+});
+
 test('Mermaid syntax errors report the fence line without rejecting valid diagrams', async () => {
   const fixture = project();
   const path = 'docs/intro.md';

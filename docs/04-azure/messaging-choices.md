@@ -90,7 +90,7 @@ A queue inside a storage account. Messages are up to 64 KB, a receiver hides a m
 | Messages above 256 KB that must be in the broker | Service Bus Premium | Only Premium raises the size limit |
 | Kafka clients | Event Hubs Standard or higher | Basic has no Kafka endpoint |
 | More than 20 consumer groups or retention above 7 days | Event Hubs Premium or Dedicated | Standard caps at 20 groups and 7 days |
-| Survive a region loss with no message loss | Service Bus Premium Geo-Replication | Geo-Disaster Recovery copies metadata only |
+| Survive a region loss with no message loss | Service Bus Premium Geo-Replication in synchronous mode | Synchronous mode acknowledges a send only after both regions commit it, so sends pay a cross-region round trip and get throttled when the secondary falls behind. Asynchronous mode can lose recent messages on a forced promotion, and Geo-Disaster Recovery copies metadata only |
 
 Service Bus namespaces are zone redundant automatically in supported regions, at no extra cost, on every tier. See [Regions, zones, and resiliency](./regions-zones-and-resiliency.md) for the multi-region options and [Compute choices](./compute-choices.md) for the consumers.
 
@@ -111,5 +111,6 @@ Service Bus namespaces are zone redundant automatically in supported regions, at
 - [Storage queues and Service Bus queues compared](https://learn.microsoft.com/azure/service-bus-messaging/service-bus-azure-and-service-bus-queues-compared-contrasted)
 - [Service Bus quotas](https://learn.microsoft.com/azure/service-bus-messaging/service-bus-quotas) and [Event Hubs quotas](https://learn.microsoft.com/azure/event-hubs/event-hubs-quotas)
 - [Event Grid delivery and retry](https://learn.microsoft.com/azure/event-grid/delivery-and-retry)
+- [Service Bus Geo-Replication](https://learn.microsoft.com/azure/service-bus-messaging/service-bus-geo-replication)
 - [The Outbox design pattern](https://thecodinggopher.substack.com/p/the-transactional-outbox-pattern) (The Coding Gopher)
 - [Kafka deep dive](https://www.hellointerview.com/learn/system-design/deep-dives/kafka) (Hello Interview)
