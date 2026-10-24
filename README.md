@@ -6,7 +6,8 @@ Microsoft Azure, so the designs double as practice architecting on it.
 
 ## Read it
 
-Start at [Start here](docs/intro.md) and work through the six levels in order.
+Read the site at <https://red-meadow-0c7d14a0f.4.azurestaticapps.net>. Start at
+[Start here](docs/intro.md) and work through the six levels in order.
 
 | Level | What it covers |
 | --- | --- |
@@ -55,3 +56,20 @@ the outline becomes a complete page.
 
 The link checker treats access restrictions and rate limits as unverified,
 not broken. It exits with an error for missing pages or connection failures.
+
+## Deploy
+
+The site is an Azure Static Web App, `swa-system-design-modern` on the Free
+plan in the `rg-docusaurus` resource group. The Azure CLI fetches its
+deployment token, and the Static Web Apps CLI uploads the build:
+
+```bash
+npm run check
+token=$(az staticwebapp secrets list -n swa-system-design-modern \
+  -g rg-docusaurus --query properties.apiKey -o tsv)
+npx @azure/static-web-apps-cli deploy ./build --env production \
+  --deployment-token "$token"
+```
+
+`static/staticwebapp.config.json` serves the site's own 404 page for unknown
+paths.
