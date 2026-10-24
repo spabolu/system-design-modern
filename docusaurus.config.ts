@@ -114,6 +114,14 @@ const config: Config = {
           title: 'References',
           items: [
             {
+              label: 'Azure Architecture Center',
+              href: 'https://learn.microsoft.com/azure/architecture/',
+            },
+            {
+              label: 'Azure Well-Architected Framework',
+              href: 'https://learn.microsoft.com/azure/well-architected/',
+            },
+            {
               label: 'Hello Interview',
               href: 'https://www.hellointerview.com/learn/system-design/in-a-hurry/introduction',
             },
@@ -125,18 +133,10 @@ const config: Config = {
               label: 'The Coding Gopher on YouTube',
               href: 'https://www.youtube.com/@TheCodingGopher',
             },
-            {
-              label: 'Azure Architecture Center',
-              href: 'https://learn.microsoft.com/azure/architecture/',
-            },
-            {
-              label: 'Azure Well-Architected Framework',
-              href: 'https://learn.microsoft.com/azure/well-architected/',
-            },
           ],
         },
       ],
-      copyright: `© ${new Date().getFullYear()} Saketh Pabolu · v${version}`,
+      copyright: `v${version}`,
     },
     prism: {
       theme: prismThemes.github,
