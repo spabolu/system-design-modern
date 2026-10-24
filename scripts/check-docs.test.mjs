@@ -160,11 +160,16 @@ test('level five uses the concept template, not the case-study template', () => 
 });
 
 test('stub warning becomes a strict error and skips content checks', () => {
-  const stub = `${frontMatter}\n<!-- stub -->\n`;
+  const stub = `${frontMatter}\n<!-- stub -->\n${concept.map((heading) => `\n## ${heading}\n`).join('')}`;
   assert.deepEqual(check(stub).map(({severity}) => severity), ['warning']);
   hasMessage(check(stub), /Unfinished page/, 'warning');
   assert.deepEqual(check(stub, {strict: true}).map(({severity}) => severity), ['error']);
   hasMessage(check(stub, {strict: true}), /Unfinished page/);
+});
+
+test('stubs still need the required headings in order', () => {
+  const stub = `${frontMatter}\n<!-- stub -->\n## TL;DR\n`;
+  hasMessage(check(stub), /Expected ## headings in order/);
 });
 
 test('stubs still need metadata and the registered position', () => {
@@ -256,7 +261,8 @@ test('CLI prints path and line diagnostics and exits according to severity', () 
   const root = mkdtempSync(join(tmpdir(), 'system-design-docs-'));
   try {
     const fixture = project();
-    fixture.files.set('docs/01-fundamentals/first.md', `${frontMatter}\n<!-- stub -->\n`);
+    fixture.files.set('docs/01-fundamentals/first.md',
+      `${frontMatter}\n<!-- stub -->\n${concept.map((heading) => `\n## ${heading}\n`).join('')}`);
     writeFixture(root, fixture);
     const script = fileURLToPath(new URL('./check-docs.mjs', import.meta.url));
     const normal = spawnSync(process.execPath, [script], {cwd: root, encoding: 'utf8'});

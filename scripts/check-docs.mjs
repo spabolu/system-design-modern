@@ -94,14 +94,14 @@ export function checkDoc({
       `sidebar_position must be ${expectedPosition} to match the curriculum registry.`));
   }
 
-  if (source.includes('<!-- stub -->')) {
+  const stub = source.includes('<!-- stub -->');
+  if (stub) {
     diagnostics.push({
       path,
       line: lineAt(source, source.indexOf('<!-- stub -->')),
       severity: strict ? 'error' : 'warning',
       message: 'Unfinished page contains <!-- stub -->.',
     });
-    return diagnostics;
   }
   if (!expectedHeadings) return diagnostics;
 
@@ -112,6 +112,7 @@ export function checkDoc({
     diagnostics.push(error(path, sections[0]?.line ?? 1,
       `Expected ## headings in order [${expectedHeadings.join(', ')}]; found [${actual.join(', ')}].`));
   }
+  if (stub) return diagnostics;
   for (const section of sections) {
     if (!expectedHeadings.includes(section.heading)) continue;
     const content = sectionContent(section.body);
