@@ -65,6 +65,14 @@ A case study (level 6) follows Hello Interview's [delivery framework](https://ww
 - **Diagrams are Mermaid.** Use fenced `mermaid` code blocks. Prefer `flowchart LR` for architectures and `sequenceDiagram` for request flows.
 - **Numbers carry units and a source.** Latency, throughput, and limits state their unit, and Azure limits cite the Learn page they came from.
 
+## Versioning
+
+The `version` field in `package.json` tracks releases of the site, and the footer shows it. Bump it in the PR that makes the change, with `npm version <new> --no-git-tag-version` so `package-lock.json` matches. After the PR merges, tag the merge commit `v<version>` and push the tag.
+
+- **Major.** A published page URL moves or disappears, or the curriculum's levels are restructured.
+- **Minor.** New pages, new sections, or a raised Node.js floor.
+- **Patch.** Corrections, rewording, and tooling fixes that readers do not see.
+
 ## Reference sources
 
 - [Hello Interview, System Design in a Hurry](https://www.hellointerview.com/learn/system-design/in-a-hurry/introduction)

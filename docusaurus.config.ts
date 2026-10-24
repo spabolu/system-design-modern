@@ -3,6 +3,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import {version} from './package.json';
 
 const config: Config = {
   title: 'Modern System Design',
@@ -135,7 +136,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `© ${new Date().getFullYear()} Saketh Pabolu`,
+      copyright: `© ${new Date().getFullYear()} Saketh Pabolu · v${version}`,
     },
     prism: {
       theme: prismThemes.github,
