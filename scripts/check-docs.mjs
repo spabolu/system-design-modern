@@ -10,7 +10,8 @@ import {parseMermaid} from './mermaid.mjs';
 const {load, JSON_SCHEMA} = createRequire(import.meta.url)('js-yaml');
 
 export const bannedTerms = [
-  'AWS', 'Amazon Web Services', 'Amazon S3', 'S3', 'DynamoDB', 'AWS Lambda',
+  'AWS', 'Amazon Web Services', 'Amazon S3', 'AWS S3', 'S3 bucket', 'S3 buckets',
+  'S3 API', 'S3-compatible', 'DynamoDB', 'AWS Lambda',
   'EC2', 'SQS', 'SNS', 'Kinesis', 'CloudFront', 'Route 53', 'Aurora',
   'Redshift', 'ElastiCache', 'EKS', 'ECS', 'Fargate', 'GCP', 'Google Cloud',
   'BigQuery', 'Cloud Bigtable', 'Cloud Spanner', 'Cloud Pub/Sub',

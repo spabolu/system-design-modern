@@ -292,7 +292,8 @@ test('Azure-only terms have case-sensitive word boundaries and useful line numbe
 
 test('all required competing-cloud terms are forbidden', () => {
   const terms = [
-    'AWS', 'Amazon Web Services', 'Amazon S3', 'S3', 'DynamoDB', 'AWS Lambda',
+    'AWS', 'Amazon Web Services', 'Amazon S3', 'AWS S3', 'S3 bucket', 'S3 buckets',
+    'S3 API', 'S3-compatible', 'DynamoDB', 'AWS Lambda',
     'EC2', 'SQS', 'SNS', 'Kinesis', 'CloudFront', 'Route 53', 'Aurora', 'Redshift',
     'ElastiCache', 'EKS', 'ECS', 'Fargate', 'GCP', 'Google Cloud', 'BigQuery',
     'Cloud Bigtable', 'Cloud Spanner', 'Cloud Pub/Sub', 'Google Pub/Sub',
@@ -306,6 +307,19 @@ test('all required competing-cloud terms are forbidden', () => {
 test('paper names and generic pub/sub are allowed', () => {
   assert.deepEqual(checkBannedTerms('docs/example.md',
     'The Dynamo paper, Spanner, Bigtable, and generic pub/sub are allowed.'), []);
+});
+
+test('Azure AI Search S3 tiers are allowed but S3 object storage is forbidden', () => {
+  assert.deepEqual(checkBannedTerms('docs/example.md',
+    'Azure AI Search Standard S3 tier and S3 HD are allowed.'), []);
+  for (const source of ['an S3 bucket', 'S3 buckets', 'S3 API', 'S3-compatible']) {
+    assert.deepEqual(checkBannedTerms('docs/example.md', source), [{
+      path: 'docs/example.md',
+      line: 1,
+      severity: 'error',
+      message: `Azure-only rule forbids "${source.replace('an ', '')}".`,
+    }]);
+  }
 });
 
 for (const path of ['docs/intro.md', 'blog/note.md', 'src/pages/index.tsx', 'templates/concept.md']) {
