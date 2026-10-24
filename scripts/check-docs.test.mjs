@@ -359,7 +359,7 @@ test('the real idempotency sentence requires escaped currency dollars', async ()
   assert.deepEqual(await checkProject(fixture), []);
 });
 
-for (const value of ['50 dollars to ', '50" to ']) {
+for (const value of ['50 dollars to ', '50" to ', '50 to ']) {
   test(`currency detection rejects prose in math ${JSON.stringify(value)}`, async () => {
     const fixture = project();
     fixture.files.set('docs/intro.md', `${frontMatter}\n$${value}$\n`);
@@ -370,7 +370,7 @@ for (const value of ['50 dollars to ', '50" to ']) {
 test('currency detection permits numbers, text groups, and command names in real math', async () => {
   const fixture = project();
   fixture.files.set('docs/intro.md', `${frontMatter}
-$50$, $2xy$, $50\\ \\text{events per second}$, and $2\\times 3\\approx 6$.
+$50$, $2xy$, $2xyz$, $50\\ \\text{events per second}$, $50\\ \\mathrm{requests/s}$, and $2\\times 3\\approx 6$.
 `);
   assert.deepEqual(await checkProject(fixture), []);
 });

@@ -36,8 +36,8 @@ function checkKatex(node) {
 }
 
 function checkCurrency(node) {
-  const prose = node.value.replace(/\\text\{[^}]*\}/g, '').replace(/\\[a-zA-Z]+/g, '');
-  if (/^\d/.test(node.value) && /[a-zA-Z]{3,}|"/.test(prose)) {
+  const prose = node.value.replace(/\\[a-zA-Z]+(?:\{[^}]*\})?/g, '');
+  if (/^\d/.test(node.value) && (/\s$|"/.test(node.value) || /\s[a-zA-Z]{2,}/.test(prose))) {
     return 'currency dollar parsed as math; escape it as \\$';
   }
 }
