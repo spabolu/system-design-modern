@@ -40,9 +40,19 @@ I kept ask, resume, and ground because together they are the product. Without gr
 - **Answer accuracy.** Citations let a reader check an answer. Measuring answer quality is a follow-up.
 - **Live sync across devices.** A second device sees the answer when it opens the chat.
 
-The property that shapes this design most is that capacity is counted in tokens, not requests. Five million prompts a day is 5M / 86,400 ≈ 58 a second, or about 175 a second at a 3x peak. Each request sends about 4,000 input tokens (500 of system prompt, 2,000 of history, 1,500 retrieved) and gets back about 400. At peak that's 175 × 4,000 × 60 = 42 million input tokens a minute (TPM) and 4.2 million output TPM. Model capacity is sold in TPM, so 42 million TPM is a quota conversation, not a server count, and every limit below counts tokens.
+The property that shapes this design most is that capacity is counted in tokens, not requests. Each request sends about 4,000 input tokens (500 of system prompt, 2,000 of history, 1,500 retrieved) and gets back about 400. Five million prompts a day at a 3x peak gives the input load in tokens a minute (TPM):
 
-The model writes about 50 tokens a second, so a 400-token answer streams for 8 s. By Little's law, 175 a second × 8 s ≈ 1,400 answers are in flight at peak. Holding 1,400 connections is cheap, so plain HTTP streaming is enough. But with that many answers always mid-stream, every deploy and flaky network cuts some off, so requirement 2 needs real machinery.
+$$
+\begin{aligned}
+\text{average} &= \frac{5\text{M prompts}}{86{,}400\ \text{s}} \approx 58\ \text{prompts/s} \\
+\text{peak} &\approx 3 \times 58 \approx 175\ \text{prompts/s} \\
+\text{input at peak} &= 175 \times 4{,}000 \times 60 = 42\text{M TPM}
+\end{aligned}
+$$
+
+Output at peak is 4.2 million TPM. Model capacity is sold in TPM, so 42 million TPM is a quota conversation, not a server count, and every limit below counts tokens.
+
+The model writes about 50 tokens a second, so a 400-token answer streams for 8 s. By Little's law, $175/\text{s} \times 8\ \text{s} \approx 1{,}400$ answers are in flight at peak. Holding 1,400 connections is cheap, so plain HTTP streaming is enough. But with that many answers always mid-stream, every deploy and flaky network cuts some off, so requirement 2 needs real machinery.
 
 ## Core entities
 
@@ -180,7 +190,7 @@ The history store needs these fields:
 - **Thread.** `threadId`, `userId`, `tenantId`, `title`, `updatedAt`.
 - **Message.** `threadId`, `messageId`, `role` (`user` or `assistant`), `content`, `status` (`streaming`, `complete`, `stopped`, or `failed`), and `usage` (input and output tokens).
 
-Each prompt leaves two messages of about 2 KB, so 5M × 2 × 2 KB = 20 GB a day, or about 1.8 TB at 90-day retention. Every read is "this user's threads" or "this thread's messages", so I'd partition by user and then thread and let messages expire on their own.
+Each prompt leaves two messages of about 2 KB, so $5\text{M} \times 2 \times 2\ \text{KB} = 20\ \text{GB}$ a day, or about 1.8 TB at 90-day retention. Every read is "this user's threads" or "this thread's messages", so I'd partition by user and then thread and let messages expire on their own.
 
 ### 3) Users can get grounded answers with citations
 
@@ -338,7 +348,13 @@ Put the quadratic arithmetic on the board. It turns "summarize old turns" from a
 
 **Approach.** Load every earlier message and send it with each prompt, as the high-level design does. The model sees everything, so recall is perfect.
 
-**Challenges.** Turn k resends the k − 1 turns before it. Over 20 turns that's 450 × (0 + 1 + ... + 19) = 450 × 190 = 85,500 tokens of history to carry a 9,000-token conversation, and the total grows with the square of the turn count. A bigger prompt also delays the first token, and long chats eventually hit the model's context limit.
+**Challenges.** Turn $k$ resends the $k - 1$ turns before it. Over 20 turns, carrying a 9,000-token conversation takes this much history:
+
+$$
+450 \times (0 + 1 + \cdots + 19) = 450 \times 190 = 85{,}500\ \text{tokens}
+$$
+
+The total grows with the square of the turn count. A bigger prompt also delays the first token, and long chats eventually hit the model's context limit.
 
 #### Good solution: Send only the last few turns
 
@@ -348,7 +364,7 @@ Put the quadratic arithmetic on the board. It turns "summarize old turns" from a
 
 #### Great solution: Fold old turns into a summary and keep the prompt append-only
 
-**Approach.** Keep a running summary of older turns, capped at about 300 tokens, in new `summary` and `summaryThroughMessageId` fields on the thread. Each prompt carries the summary plus every turn after that marker. When the tail reaches 8 turns, a background job on a small, cheap model folds the oldest 4 into the summary and moves the marker. History then stays between 300 + 4 × 450 = 2,100 and 300 + 7 × 450 = 3,450 tokens however long the chat runs, a little above the estimate's 2,000, which averages in short chats. Order the prompt from most stable to least, meaning system prompt, summary, tail, retrieved chunks, then the question. Between folds the history only grows at its end, so consecutive prompts share a long identical prefix, which model services cache and bill at a discount. For very long threads, also embed each folded turn and retrieve the one or two closest to the new question.
+**Approach.** Keep a running summary of older turns, capped at about 300 tokens, in new `summary` and `summaryThroughMessageId` fields on the thread. Each prompt carries the summary plus every turn after that marker. When the tail reaches 8 turns, a background job on a small, cheap model folds the oldest 4 into the summary and moves the marker. History then stays between $300 + 4 \times 450 = 2{,}100$ and $300 + 7 \times 450 = 3{,}450$ tokens however long the chat runs, a little above the estimate's 2,000, which averages in short chats. Order the prompt from most stable to least, meaning system prompt, summary, tail, retrieved chunks, then the question. Between folds the history only grows at its end, so consecutive prompts share a long identical prefix, which model services cache and bill at a discount. For very long threads, also embed each folded turn and retrieve the one or two closest to the new question.
 
 ```mermaid
 flowchart LR
