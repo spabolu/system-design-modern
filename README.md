@@ -1,43 +1,33 @@
-# Website
+# Modern System Design
 
-This website is built using [Docusaurus](https://docusaurus.io/), a modern static website generator.
+A personal system design curriculum that builds from fundamentals to advanced
+topics and worked case studies. Every cloud example uses Microsoft Azure.
+Notes holds dated observations on new developments and links them back to the
+curriculum.
 
-## Installation
+## Local development
 
-```bash
-npm install
-```
+Use Node.js 22 and install dependencies with `npm install`.
 
-**Note**: feel free to use the package manager of your choice.
+| Command | What it does |
+| --- | --- |
+| `npm start` | Starts the local development server. |
+| `npm run check` | Runs strict docs lint, then builds the production site with broken-link checks. |
+| `npm test` | Runs the docs lint, scaffold, and link checker behavior tests. |
+| `npm run check:links` | Requests external links and reports failures and unverified responses. |
 
-## Local Development
+Strict docs lint rejects unfinished pages marked `<!-- stub -->`. While the
+curriculum is under construction, use `node scripts/check-docs.mjs` to check
+structure with stub warnings and `npm run build` to build the site separately.
+The strict check and CI stay red until the stubs become complete pages.
 
-```bash
-npm run start
-```
+The link checker treats access restrictions and rate limits as unverified,
+not broken. It exits with an error for missing pages or connection failures.
 
-This command starts a local development server and opens up a browser window. Most changes are reflected live without having to restart the server.
+## Add a page
 
-## Build
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the curriculum registry, page
+templates, and authoring rules.
 
-```bash
-npm run build
-```
-
-This command generates static content into the `build` directory and can be served using any static contents hosting service.
-
-## Deployment
-
-Using SSH:
-
-```bash
-USE_SSH=true npm run deploy
-```
-
-Not using SSH:
-
-```bash
-GIT_USER=<Your GitHub username> npm run deploy
-```
-
-If you are using GitHub Pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.
+After updating the registry, run `node scripts/scaffold-stubs.mjs` to create
+missing outlines. The generator leaves existing pages and categories unchanged.
