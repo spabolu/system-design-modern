@@ -1,5 +1,5 @@
 ---
-title: "AI chat assistant"
+title: "AI Chat Assistant"
 description: "Design a workplace chat assistant that streams answers, survives dropped connections, grounds replies in documents each user may read, and shares model capacity fairly, then map it to API Management, Azure OpenAI in Microsoft Foundry Models, Azure AI Search, and Cosmos DB."
 sidebar_position: 12
 ---

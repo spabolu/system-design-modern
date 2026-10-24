@@ -1,5 +1,5 @@
 ---
-title: "Chat messaging"
+title: "Chat Messaging"
 description: "Design a WhatsApp-style messenger with guaranteed delivery, groups of up to 100, and multi-device sync, then map it to Azure Web PubSub, Cosmos DB, Notification Hubs, and Blob Storage."
 sidebar_position: 4
 ---

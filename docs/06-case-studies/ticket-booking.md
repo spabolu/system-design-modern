@@ -1,5 +1,5 @@
 ---
-title: "Ticket booking"
+title: "Ticket Booking"
 description: "Design a Ticketmaster-style booking site that never sells a seat twice while 10 million fans hit one on-sale, then map it to Azure SQL Database, Azure Managed Redis, Web PubSub, and Azure AI Search."
 sidebar_position: 5
 ---

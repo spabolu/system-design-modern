@@ -1,5 +1,5 @@
 ---
-title: "Top k leaderboard"
+title: "Top K Leaderboard"
 description: "Design an exact top-k most-viewed videos service over hourly, daily, monthly, and all-time windows at 70 billion views a day, using Event Hubs, Stream Analytics, and Azure Data Explorer materialized views."
 sidebar_position: 10
 ---

@@ -1,5 +1,5 @@
 ---
-title: "Customer-support agent"
+title: "Customer-Support Agent"
 description: "Placeholder."
 sidebar_position: 13
 ---

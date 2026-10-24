@@ -1,5 +1,5 @@
 ---
-title: "Clinical scribe"
+title: "Clinical Scribe"
 description: "Placeholder."
 sidebar_position: 15
 ---

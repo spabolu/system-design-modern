@@ -1,5 +1,5 @@
 ---
-title: "Ad click aggregator"
+title: "Ad Click Aggregator"
 description: "Design an ad click aggregator that redirects users, counts each click exactly once, and serves per-minute counts to advertisers, then map it to Front Door, Event Hubs, Azure Data Explorer, and a nightly recount from Event Hubs Capture."
 sidebar_position: 11
 ---

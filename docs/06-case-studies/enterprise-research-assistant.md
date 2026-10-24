@@ -1,5 +1,5 @@
 ---
-title: "Enterprise research assistant"
+title: "Enterprise Research Assistant"
 description: "Placeholder."
 sidebar_position: 14
 ---
