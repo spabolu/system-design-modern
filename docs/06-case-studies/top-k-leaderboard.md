@@ -30,7 +30,7 @@ These three cover what a viewer sees, a list per window plus the stream that fee
 ## Non-functional requirements
 
 1. **Exact counts.** The list matches the view counts shown on each video. No sampling or sketches unless the interviewer relaxes this.
-2. **Fresh.** A view shows up in the all-time list within 1 minute, and an hour, day, or month list is ready within 1 minute of its window closing.
+2. **Fresh.** A view shows up in the all-time list within 3 minutes, and an hour, day, or month list is ready within 2 minutes of its window closing.
 3. **Fast reads.** A query returns in tens of milliseconds.
 4. **Scale.** 70 billion views a day, the published daily view count of a large short-video platform, across 4 billion videos.
 5. **No lost or double-counted views.** A failed processing node loses nothing and counts nothing twice.
@@ -80,7 +80,7 @@ Requirement 3 is the same read for a closed window. The response names the bucke
 GET /v1/top-videos?window=hour&k=100
 
 200 OK
-{ "window": "hour", "bucket": "2026-10-14T09", "computedAt": "2026-10-14T10:00:41Z", "items": [{ "videoId": "v_2kd91", "views": 48211093 }] }
+{ "window": "hour", "bucket": "2026-10-14T09", "computedAt": "2026-10-14T10:01:12Z", "items": [{ "videoId": "v_2kd91", "views": 48211093 }] }
 ```
 
 ## High-level design
@@ -189,7 +189,7 @@ flowchart LR
   MC --> RU["Rollups by hour, day, month, all"]
 ```
 
-**Challenges.** Counts reach the store up to a minute late, plus however long the job waits for stragglers, which the freshness requirement allows. Exactly-once processing inside the job doesn't make delivery to the store exactly once, which deep dive 4 handles. You also run a stateful stream engine, or rent one.
+**Challenges.** Counts reach the store up to a minute late, plus however long the job waits for stragglers. That is why requirement 2 gives the all-time list 3 minutes, and deep dive 3 adds up the whole path. Exactly-once processing inside the job doesn't make delivery to the store exactly once, which deep dive 4 handles. You also run a stateful stream engine, or rent one.
 
 :::info
 If the interviewer relaxes exactness, a count-min sketch plus a heap per window finds the top $K$ in fixed memory. Its counts are overestimates, so videos near the cutoff can come out in the wrong order.
@@ -233,7 +233,7 @@ flowchart LR
   API -->|"point read"| LS
 ```
 
-**Challenges.** The job does heavy work at window boundaries. Ranking a month's billion-plus rollup rows can take longer than the 1-minute target, so maintain the monthly list during the month the same way deep dive 3 maintains the all-time list. The design depends on windows that close, so sliding windows would break it. You also run two stores, the analytics store and the list store.
+**Challenges.** The job does heavy work at window boundaries. Ranking a month's billion-plus rollup rows can take longer than the 2-minute target allows, so maintain the monthly list during the month the same way deep dive 3 maintains the all-time list. The design depends on windows that close, so sliding windows would break it. You also run two stores, the analytics store and the list store.
 
 :::warning
 Don't build the daily list by merging 24 hourly top-1,000 lists. A video ranked 1,001st every hour never appears in any of them but can be first for the day. Roll up the counts, not the lists.
@@ -241,7 +241,7 @@ Don't build the daily list by merging 24 hourly top-1,000 lists. A video ranked 
 
 In a 45-minute interview I'd mention the sorted set as the game-leaderboard answer, size the all-time set to show why it fails here, and land on computing each list when its window closes.
 
-### 3) How does the all-time list stay within a minute of fresh?
+### 3) How does the all-time list stay within 3 minutes of fresh?
 
 This serves requirement 2. The all-time window never closes, so the list from deep dive 2 has to be recomputed, and the rollup it ranks covers 4 billion videos.
 
@@ -280,7 +280,7 @@ flowchart LR
   TJ -->|"merged top 1,000"| LS
 ```
 
-**Challenges.** It depends on counts never decreasing. If fraud cleanup ever subtracts views, a video can fall out of the list and the job can't know which video should replace it, so you fall back to the full rerank as an occasional batch. Looking up 5 million totals a minute, about 83,000 a second, has to finish well inside the minute.
+**Challenges.** It depends on counts never decreasing. If fraud cleanup ever subtracts views, a video can fall out of the list and the job can't know which video should replace it, so you fall back to the full rerank as an occasional batch. Looking up 5 million totals a minute, about 83,000 a second, has to finish well inside the minute, because most of requirement 2's budget is gone before the job starts. A view waits up to 60 seconds for its minute to close, 30 for stragglers, about 10 to land in the store, up to 20 for the next run, and up to 10 in the API cache. That is 130 of the 180 seconds, so the run has to finish in well under 50. A closed hour skips the first 60 and fits its 2 minutes with the same run time.
 
 In a 45-minute interview I'd state the "counts only go up" argument and the 0.1% figure. It's a short answer that shows you reasoned about the data instead of throwing compute at it.
 
@@ -296,7 +296,7 @@ This serves requirements 1 and 5. Phones send views after going offline, consume
 
 #### Good solution: Count by event time with a late-arrival tolerance
 
-**Approach.** Window by the view's `eventTime` and let the job wait 30 seconds for stragglers before closing a minute, which still fits the 1-minute freshness target. A view later than that is adjusted into the window that is still open, not dropped, so no view is lost and totals stay exact, though an hour's edge can blur by a few seconds. See [time, clocks, and ordering](../05-advanced/time-clocks-and-ordering.md).
+**Approach.** Window by the view's `eventTime` and let the job wait 30 seconds for stragglers before closing a minute, which deep dive 3's freshness budget already counts. A view later than that is adjusted into the window that is still open, not dropped, so no view is lost and totals stay exact, though an hour's edge can blur by a few seconds. See [time, clocks, and ordering](../05-advanced/time-clocks-and-ordering.md).
 
 **Challenges.** Duplicates still get through. A restarted job can deliver the same minute row twice, and the sums count both.
 
@@ -348,7 +348,7 @@ flowchart LR
 - **Stream Analytics over self-managed Flink.** Stream Analytics has tumbling windows and event-time handling built in and processes exactly once ([windowing](https://learn.microsoft.com/azure/stream-analytics/stream-analytics-window-functions), [introduction](https://learn.microsoft.com/azure/stream-analytics/stream-analytics-introduction)). One job scales to 66 SU V2, roughly 400 MB/s ([parallelization](https://learn.microsoft.com/azure/stream-analytics/stream-analytics-parallelization)), so the 160 MB/s peak fits if the query parallelizes by partition. At compatibility level 1.2, you get that by setting the partition key column on the input instead of writing `PARTITION BY PartitionId`. Azure's managed Flink, HDInsight on AKS, retired on January 31, 2025 ([HDInsight on AKS](https://learn.microsoft.com/previous-versions/azure/hdinsight-aks/overview)), so Flink means running it yourself. Choose that only for the per-partition heaps of deep dive 3.
 - **Late arrivals adjusted, not dropped.** Stream Analytics either drops an event later than the policy or adjusts its timestamp to fit, and the default tolerance is 5 seconds ([event ordering](https://learn.microsoft.com/azure/stream-analytics/event-ordering)). Set it to 30 seconds with Adjust so no view is lost.
 - **Azure Data Explorer materialized views.** They always return current results by combining the materialized part with records not yet processed ([materialized views](https://learn.microsoft.com/kusto/management/materialized-views/materialized-view-overview)). A view can sit on another view only if the first is a `take_any(*)` deduplication view, which is exactly this shape. A view query can't use `top` or `sort` ([create materialized view](https://learn.microsoft.com/kusto/management/materialized-views/materialized-view-create)), so the views only sum, and the top-K job ranks with `top` at query time.
-- **Low-latency ingestion.** Data Explorer batches ingestion by default for up to 5 minutes, which alone breaks the 1-minute freshness target. Enable streaming ingestion or shorten the batching policy on the minute table ([Stream Analytics output to Data Explorer](https://learn.microsoft.com/azure/stream-analytics/azure-database-explorer-output)).
+- **Low-latency ingestion.** Data Explorer batches ingestion by default for up to 5 minutes, which alone breaks both freshness targets in requirement 2. Enable streaming ingestion or shorten the batching policy on the minute table ([Stream Analytics output to Data Explorer](https://learn.microsoft.com/azure/stream-analytics/azure-database-explorer-output)).
 - **Cosmos DB for lists.** A 40 KB list sits well under the 2 MB item limit ([limits](https://learn.microsoft.com/azure/cosmos-db/concepts-limits)), and a point read by `id` and partition key costs fewer RUs than a query ([request units](https://learn.microsoft.com/azure/cosmos-db/request-units)). Front Door can also cache the response for a few seconds, since everyone sees the same list.
 - **The game-leaderboard variant.** If the interviewer shrinks the problem to a few million players, an Azure Managed Redis sorted set is the whole answer. With active geo-replication, Learn describes one sorted set serving a global leaderboard ([active geo-replication](https://learn.microsoft.com/azure/redis/how-to-active-geo-replication)).
 

@@ -622,6 +622,12 @@ test('a Mermaid example inside another code fence does not count as a diagram', 
   hasMessage(check(source), /How it works.*Mermaid fence/);
 });
 
+test('a Mermaid fence inside an HTML comment does not count as a diagram', () => {
+  const source = page(concept, []).replace('Explanation of How it works.',
+    `Explanation of How it works.\n\n<!--\n${diagram}\n-->\n`);
+  hasMessage(check(source), /How it works.*Mermaid fence/);
+});
+
 for (const missing of ['High-level design', 'On Azure']) {
   test(`case studies need a Mermaid fence in ${missing}`, async () => {
     const fixture = project();
