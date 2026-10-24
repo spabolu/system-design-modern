@@ -53,7 +53,7 @@ The numbers are modest. 5 MB/s fits in a handful of stream throughput units, and
 
 ```text
 GET /click?imp={impressionId}&ad={adId}&sig={signature}
-  -> 302 Location: https://advertiser.example/landing
+  -> 302 Location: https://<advertiser-site>/landing
 
 GET /ads/{adId}/clicks?from=2026-10-01T00:00Z&to=2026-10-02T00:00Z&granularity=1m|1h|1d
   -> 200 { adId, granularity, points: [{ t, clicks }] }

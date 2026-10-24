@@ -62,15 +62,15 @@ See [back-of-the-envelope estimation](../01-fundamentals/back-of-the-envelope.md
 ```http
 POST /v1/links
 Authorization: Bearer <api-key>
-{ "longUrl": "https://example.com/very/long/path", "alias": "launch-day", "expiresAt": "2026-12-31T00:00:00Z" }
+{ "longUrl": "https://learn.microsoft.com/azure/cosmos-db/partitioning", "alias": "launch-day", "expiresAt": "2026-12-31T00:00:00Z" }
 
 201 Created
-{ "shortUrl": "https://sho.rt/launch-day", "code": "launch-day" }
+{ "shortUrl": "https://<short-domain>/launch-day", "code": "launch-day" }
 409 Conflict   (alias taken)
 
 GET /{code}
 302 Found
-Location: https://example.com/very/long/path
+Location: https://learn.microsoft.com/azure/cosmos-db/partitioning
 Cache-Control: private, max-age=300
 ```
 
