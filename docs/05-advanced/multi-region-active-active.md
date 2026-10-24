@@ -52,7 +52,7 @@ flowchart TB
 
 ### Capacity math
 
-With *N* equal regions and a requirement to survive one regional loss, each survivor takes 1/(*N* − 1) of the load instead of 1/*N*. The steady-state ceiling per region is (*N* − 1)/*N*: 50% for two regions, 67% for three, 75% for four. More regions waste less headroom but add more replication paths and more places for conflicts. Quotas must already exist in the surviving regions, because a regional outage is when everyone else asks for capacity too.
+With $N$ equal regions and a requirement to survive one regional loss, each survivor takes $1/(N-1)$ of the load instead of $1/N$. The steady-state ceiling per region is $(N-1)/N$: 50% for two regions, 67% for three, 75% for four. More regions waste less headroom but add more replication paths and more places for conflicts. Quotas must already exist in the surviving regions, because a regional outage is when everyone else asks for capacity too.
 
 ### Consistency across regions
 

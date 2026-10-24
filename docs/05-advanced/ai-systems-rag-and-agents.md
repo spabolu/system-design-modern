@@ -52,7 +52,7 @@ sequenceDiagram
 
 - **Keyword search** ([BM25](../02-building-blocks/search.md)) matches exact terms. It wins on product codes, error messages, and names.
 - **Vector search** finds the nearest embeddings to the query's embedding. It wins on paraphrase ("can't sign in" versus "authentication failure"). Indexes such as HNSW are approximate: they trade a little recall for a large speedup.
-- **Hybrid search** runs both and merges with **Reciprocal Rank Fusion (RRF)**: each document scores the sum of 1/(rank + *k*) across the lists, with *k* around 60. RRF uses ranks because BM25 scores and cosine similarities are on different scales and cannot be added directly.
+- **Hybrid search** runs both and merges with **Reciprocal Rank Fusion (RRF)**: each document scores the sum of $1/(\text{rank} + k)$ across the lists, with $k$ around 60. RRF uses ranks because BM25 scores and cosine similarities are on different scales and cannot be added directly.
 - **Reranking** reads the query and each candidate together, which judges relevance better than comparing two separately computed vectors. It is too slow to run over the corpus, so it runs over the top few dozen results only.
 
 The app then builds a prompt from instructions, the chunks labeled with source IDs, and the question, and tells the model to answer only from the chunks and cite them.
@@ -74,7 +74,7 @@ The **Model Context Protocol (MCP)** is an open standard for exposing tools and 
 
 ### Evaluation
 
-- **Retrieval.** Build a labeled set of questions with the chunks that answer them, and measure recall at *k*: how often the right chunk is in the top *k*. If it is missing, no prompt change will fix the answer.
+- **Retrieval.** Build a labeled set of questions with the chunks that answer them, and measure recall at $k$: how often the right chunk is in the top $k$. If it is missing, no prompt change will fix the answer.
 - **Generation.** Measure **groundedness** (every claim is supported by the retrieved chunks), relevance, and completeness.
 - **Agents.** Measure tool-call accuracy and task completion.
 - **LLM-as-judge.** A second model scores outputs at scale. It is itself a model, so check its scores against human labels before trusting them.
@@ -107,7 +107,7 @@ A sound default: structure-aware chunks with overlap, hybrid search with a reran
 ## Interview tips
 
 - Draw the indexing pipeline and the query pipeline separately. Interviewers look for chunking, metadata, and refresh on one side and hybrid search, reranking, and citations on the other.
-- When answers are wrong, diagnose retrieval first: "Was the right chunk in the top *k*?"
+- When answers are wrong, diagnose retrieval first: "Was the right chunk in the top $k$?"
 - Put permission filtering inside the search query, never after generation.
 - For agents, talk about step limits, idempotent tools, approvals for writes, and prompt injection before model choice.
 - Propose an evaluation set and a regression gate. "We would measure recall at 10 and groundedness on 200 labeled questions" is a stronger answer than naming a model.
