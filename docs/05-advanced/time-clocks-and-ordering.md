@@ -34,7 +34,7 @@ Operating systems expose two clocks. The time-of-day clock (`CLOCK_REALTIME` on 
 
 ### Happened-before and Lamport clocks
 
-Lamport's 1978 paper defines **happened-before** (→). Event *a* → *b* if they occur in that order on one process, if *a* sends a message that *b* receives, or by transitivity. Two events where neither happened before the other are **concurrent**.
+Lamport's 1978 paper defines **happened-before** ($\rightarrow$). Event $a \rightarrow b$ if they occur in that order on one process, if $a$ sends a message that $b$ receives, or by transitivity. Two events where neither happened before the other are **concurrent**.
 
 A Lamport clock is one counter per process:
 
@@ -42,11 +42,11 @@ A Lamport clock is one counter per process:
 2. Attach the counter to every message sent.
 3. On receive, set the counter to `max(local, received) + 1`.
 
-If *a* → *b*, then `L(a) < L(b)`. The converse does not hold: a smaller number does not prove causality. Breaking ties by process ID yields a total order that every process agrees on.
+If $a \rightarrow b$, then `L(a) < L(b)`. The converse does not hold: a smaller number does not prove causality. Breaking ties by process ID yields a total order that every process agrees on.
 
 ### Vector clocks
 
-A vector clock holds one counter per process. Each process increments its own entry on every event and merges incoming vectors by taking the element-wise maximum. Compare two vectors element by element. If every entry of *V(a)* is less than or equal to *V(b)*, and at least one is smaller, then *a* → *b*. If each vector has an entry larger than the other's, the events are concurrent, and a replicated store has found a genuine conflict to merge. Lamport clocks cannot tell you that.
+A vector clock holds one counter per process. Each process increments its own entry on every event and merges incoming vectors by taking the element-wise maximum. Compare two vectors element by element. If every entry of $V(a)$ is less than or equal to $V(b)$, and at least one is smaller, then $a \rightarrow b$. If each vector has an entry larger than the other's, the events are concurrent, and a replicated store has found a genuine conflict to merge. Lamport clocks cannot tell you that.
 
 The cost is size. The vector grows with the number of writers, so systems track **version vectors** per replica rather than per client. Dynamo-style stores hand concurrent siblings to the application to merge. [CRDTs](./crdts-and-local-first.md) make that merge automatic.
 
@@ -73,7 +73,7 @@ HLC fixes this case because the second write is causally after the first, and th
 
 ### TrueTime and commit wait
 
-The Spanner paper (OSDI 2012) treats clock error as data. `TT.now()` returns an interval `[earliest, latest]` that contains true time. GPS receivers and atomic clocks in each datacenter keep the interval's half-width in the low single-digit milliseconds. To commit, a leader picks timestamp `s = TT.now().latest`, then waits until `TT.now().earliest > s` before releasing locks and acknowledging. After that wait, every node in the system agrees that `s` is in the past. If transaction T1 commits before T2 starts, T1's timestamp is smaller. That property is **external consistency**, equivalent to linearizability for transactions.
+The Spanner paper (OSDI 2012) treats clock error as data. `TT.now()` returns an interval `[earliest, latest]` that contains true time. GPS receivers and atomic clocks in each datacenter keep the interval's half-width in the low single-digit milliseconds. To commit, a leader picks timestamp `s = TT.now().latest`, then waits until `TT.now().earliest > s` before releasing locks and acknowledging. After that wait, every node in the system agrees that `s` is in the past. If transaction $T_1$ commits before $T_2$ starts, $T_1$'s timestamp is smaller. That property is **external consistency**, equivalent to linearizability for transactions.
 
 Every write pays the commit wait, about twice the uncertainty. Clocks become a correctness tool only when the uncertainty is bounded and the system waits it out.
 

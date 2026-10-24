@@ -7,7 +7,7 @@ sidebar_position: 1
 ## TL;DR
 
 - Consensus lets a group of servers agree on one ordered log of commands. Every member applies the same log to the same state machine, so the group acts like one reliable server.
-- A group of 2f+1 members survives f failures. Three members tolerate one failure, five tolerate two. A fourth member adds cost and no extra tolerance.
+- A group of $2f+1$ members survives $f$ failures. Three members tolerate one failure, five tolerate two. A fourth member adds cost and no extra tolerance.
 - Raft elects one leader per term with randomized timeouts. The leader appends commands, replicates them with `AppendEntries`, and commits an entry once a majority has stored it.
 - Every committed write pays one round trip to the nearest majority plus a disk flush. Keep the group inside one region, and keep bulk data out of it.
 - You rarely write consensus code. You consume it through etcd under AKS, Kafka's KRaft controllers, ZooKeeper, or the replica sets inside Azure Cosmos DB and Azure SQL Database.
@@ -93,7 +93,7 @@ Single-decree Paxos picks one value. A proposer chooses a ballot number and send
 | --- | --- |
 | Linearizable writes and no split brain | Each write waits for a majority round trip plus an fsync |
 | Automatic failover that loses no acknowledged write | Writes stop for at least one election timeout after the leader dies |
-| Survives f failures with 2f+1 members | The minority side of a partition rejects writes (a CP choice, see [consistency and CAP](../01-fundamentals/consistency-and-cap.md)) |
+| Survives $f$ failures with $2f+1$ members | The minority side of a partition rejects writes (a CP choice, see [consistency and CAP](../01-fundamentals/consistency-and-cap.md)) |
 | One simple ordering for all commands | One leader handles every write, so a group's throughput tops out at one machine. Shard into many groups to scale. |
 | More members tolerate more failures | More members slow every commit, and cross-region members add WAN latency to every write |
 

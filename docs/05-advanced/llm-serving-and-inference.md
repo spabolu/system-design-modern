@@ -51,7 +51,11 @@ sequenceDiagram
 
 The vLLM paper describes the split. Prefill knows every prompt token up front, so it runs as matrix-matrix multiplication and uses the GPU's parallelism well. Decode depends on the previous token, runs as matrix-vector multiplication, is memory-bound, and accounts for most of a single request's latency.
 
-That gives the latency model **TTLT = TTFT + TBT × tokens generated**, where TTLT is time to last token:
+That gives the latency model, where TTLT is time to last token:
+
+$$
+\text{TTLT} = \text{TTFT} + \text{TBT} \times \text{tokens generated}
+$$
 
 - **TTFT** grows with prompt length and with queueing on a busy deployment.
 - **TBT** depends on model size and load.
