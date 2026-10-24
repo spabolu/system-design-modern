@@ -1,5 +1,5 @@
 ---
-title: "Web crawler"
+title: "Web Crawler"
 description: "Design a crawler that fetches 10 billion pages in five days without overloading any site, then map it to Service Bus, Azure Managed Redis, AKS, NAT Gateway, and Data Lake Storage."
 sidebar_position: 9
 ---

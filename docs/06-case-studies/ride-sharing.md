@@ -1,5 +1,5 @@
 ---
-title: "Ride sharing"
+title: "Ride Sharing"
 description: "Design an Uber-style ride-hailing backend that absorbs 400,000 driver location pings a second and matches riders within a minute without ever giving one driver two rides, then map it to Azure Managed Redis, Durable Task Scheduler, Cosmos DB, and Azure Maps."
 sidebar_position: 6
 ---

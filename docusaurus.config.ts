@@ -3,6 +3,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import {version} from './package.json';
 
 const config: Config = {
   title: 'Modern System Design',
@@ -113,6 +114,14 @@ const config: Config = {
           title: 'References',
           items: [
             {
+              label: 'Azure Architecture Center',
+              href: 'https://learn.microsoft.com/azure/architecture/',
+            },
+            {
+              label: 'Azure Well-Architected Framework',
+              href: 'https://learn.microsoft.com/azure/well-architected/',
+            },
+            {
               label: 'Hello Interview',
               href: 'https://www.hellointerview.com/learn/system-design/in-a-hurry/introduction',
             },
@@ -124,18 +133,10 @@ const config: Config = {
               label: 'The Coding Gopher on YouTube',
               href: 'https://www.youtube.com/@TheCodingGopher',
             },
-            {
-              label: 'Azure Architecture Center',
-              href: 'https://learn.microsoft.com/azure/architecture/',
-            },
-            {
-              label: 'Azure Well-Architected Framework',
-              href: 'https://learn.microsoft.com/azure/well-architected/',
-            },
           ],
         },
       ],
-      copyright: `© ${new Date().getFullYear()} Saketh Pabolu`,
+      copyright: `v${version}`,
     },
     prism: {
       theme: prismThemes.github,

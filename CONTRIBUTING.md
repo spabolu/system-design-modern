@@ -14,8 +14,8 @@ The sidebar is generated from the `docs/` folders, so the folder and file names 
 | 2. Building blocks | `docs/02-building-blocks/` | `load-balancing`, `api-gateway`, `caching`, `cdn-and-edge`, `databases-sql-vs-nosql`, `indexing`, `replication`, `sharding-and-partitioning`, `consistent-hashing`, `message-queues`, `event-streaming`, `blob-storage`, `search`, `identity-and-auth` |
 | 3. Patterns | `docs/03-patterns/` | `real-time-updates`, `handling-contention`, `scaling-reads`, `scaling-writes`, `large-blobs`, `long-running-tasks`, `multi-step-processes`, `idempotency-and-retries`, `resilience-patterns`, `event-driven-cqrs-event-sourcing`, `microservices-vs-monolith` |
 | 4. Architecting on Azure | `docs/04-azure/` | `azure-service-map`, `well-architected-framework`, `regions-zones-and-resiliency`, `compute-choices`, `data-choices`, `messaging-choices`, `networking-and-security`, `observability`, `cost-optimization` |
-| 5. Advanced | `docs/05-advanced/` | `consensus-raft-paxos`, `distributed-transactions`, `time-clocks-and-ordering`, `crdts-and-local-first`, `stream-processing`, `multi-region-active-active`, `cell-based-architecture`, `ai-systems-rag-and-agents`, `llm-serving-and-inference` |
-| 6. Case studies | `docs/06-case-studies/` | `url-shortener`, `rate-limiter`, `news-feed`, `chat-messaging`, `ticket-booking`, `ride-sharing`, `video-streaming`, `file-sync`, `web-crawler`, `top-k-leaderboard`, `ad-click-aggregator`, `ai-chat-assistant` |
+| 5. Advanced | `docs/05-advanced/` | `consensus-raft-paxos`, `distributed-transactions`, `time-clocks-and-ordering`, `crdts-and-local-first`, `stream-processing`, `multi-region-active-active`, `cell-based-architecture`, `ai-systems-rag-and-agents`, `llm-serving-and-inference`, `production-ai-agents` |
+| 6. Case studies | `docs/06-case-studies/` | `url-shortener`, `rate-limiter`, `news-feed`, `chat-messaging`, `ticket-booking`, `ride-sharing`, `video-streaming`, `file-sync`, `web-crawler`, `top-k-leaderboard`, `ad-click-aggregator`, `ai-chat-assistant`, `customer-support-agent`, `enterprise-research-assistant`, `clinical-scribe` |
 
 A page may only link to pages at its own level or below, with two exceptions. Every page may link to `04-azure`, because each `## On Azure` section points there for the service decision. Case studies and `04-azure` pages may link anywhere. This keeps the path from basics to advanced readable in order.
 
@@ -64,6 +64,14 @@ A case study (level 6) follows Hello Interview's [delivery framework](https://ww
 - **No invented links.** Every external link must be a page you opened. `npm run check:links` requests every external link and reports the ones that fail.
 - **Diagrams are Mermaid.** Use fenced `mermaid` code blocks. Prefer `flowchart LR` for architectures and `sequenceDiagram` for request flows.
 - **Numbers carry units and a source.** Latency, throughput, and limits state their unit, and Azure limits cite the Learn page they came from.
+
+## Versioning
+
+The `version` field in `package.json` tracks releases of the site, and the footer shows it. Bump it in the PR that makes the change, with `npm version <new> --no-git-tag-version` so `package-lock.json` matches. After the PR merges, tag the merge commit `v<version>` and push the tag. Tag `v1.0.0` marks the site as it stood before versioning began.
+
+- **Major.** A published page URL moves or disappears, or the curriculum's levels are restructured.
+- **Minor.** New pages, new sections, or a raised Node.js floor.
+- **Patch.** Corrections, rewording, and tooling fixes that readers do not see.
 
 ## Reference sources
 

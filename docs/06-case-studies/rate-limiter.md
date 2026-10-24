@@ -1,5 +1,5 @@
 ---
-title: "Rate limiter"
+title: "Rate Limiter"
 description: "Design a distributed rate limiter that checks 1 million requests a second in under 10 ms, then map it to Front Door WAF, API Management, Container Apps, and a token bucket in Azure Managed Redis."
 sidebar_position: 2
 ---

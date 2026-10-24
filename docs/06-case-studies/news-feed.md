@@ -1,5 +1,5 @@
 ---
-title: "News feed"
+title: "News Feed"
 description: "Design a social news feed for 2 billion users that loads in under 500 ms, then map hybrid fan-out to Cosmos DB change feed, Service Bus, Azure Managed Redis, and Container Apps."
 sidebar_position: 3
 ---

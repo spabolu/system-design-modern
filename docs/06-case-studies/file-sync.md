@@ -1,5 +1,5 @@
 ---
-title: "File sync"
+title: "File Sync"
 description: "Design a Dropbox-style sync service for 500 million users and files up to 50 GB, then map it to Blob Storage, Cosmos DB transactional batch, and Azure Web PubSub."
 sidebar_position: 8
 ---

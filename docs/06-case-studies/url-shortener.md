@@ -1,5 +1,5 @@
 ---
-title: "URL shortener"
+title: "URL Shortener"
 description: "Design a link shortener that serves 1 billion links with redirects under 100 ms, then map it to Front Door, Container Apps, Azure Managed Redis, and Cosmos DB."
 sidebar_position: 1
 ---

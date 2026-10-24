@@ -1,5 +1,5 @@
 ---
-title: "Video streaming"
+title: "Video Streaming"
 description: "Design a YouTube-style platform for 1 million uploads and 100 million views a day, then map it to Blob Storage, Durable Task Scheduler, Container Apps jobs, Cosmos DB, and Front Door."
 sidebar_position: 7
 ---
