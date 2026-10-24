@@ -85,7 +85,7 @@ Idempotency makes retries safe. Retry policy decides whether they help.
 | `502`, `503`, `504` | `404` and `409` (the answer will not change) |
 | Broker "server busy" errors | Errors your code caused, such as a serialization bug |
 
-Retry at one layer only. If the client, the gateway, and the service each retry three times, one failing call becomes 27 calls to the struggling dependency. Space retries with exponential backoff and random jitter, cap the attempts, and stop when the caller's deadline passes. The details, along with circuit breakers that stop retrying a dependency that is down, are in [resilience patterns](./resilience-patterns.md).
+Retry at one layer only. If the client, the gateway, and the service each make three attempts, one failing call becomes $3^3 = 27$ calls to the struggling dependency. Space retries with exponential backoff and random jitter, cap the attempts, and stop when the caller's deadline passes. The details, along with circuit breakers that stop retrying a dependency that is down, are in [resilience patterns](./resilience-patterns.md).
 
 ## Trade-offs
 

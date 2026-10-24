@@ -35,7 +35,7 @@ Retry only transient failures (timeouts, connection resets, `429`, `503`), and o
 - **Jitter.** Pick a random delay between zero and the backoff value. Without jitter, every client that failed at the same moment retries at the same moment, and the retries arrive as synchronized waves.
 - **Cap attempts and time.** Three to five attempts, and never past the request deadline.
 - **Honor `Retry-After`.** A throttling server is telling you when it will have capacity.
-- **Retry at one layer.** Three layers each retrying three times turn one failure into 27 calls. Retry close to the failing call and let outer layers fail fast.
+- **Retry at one layer.** Three layers each making three attempts turn one failure into $3^3 = 27$ calls. Retry close to the failing call and let outer layers fail fast.
 - **Retry budget.** Allow retries only while they stay below a fraction of total traffic, such as 10%. When the dependency is fully down, retries stop adding load.
 
 ### Circuit breakers
