@@ -40,6 +40,7 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
+          numberPrefixParser: false,
           showLastUpdateTime: true,
           editUrl: 'https://github.com/spabolu/system-design-modern/tree/main/',
         },
