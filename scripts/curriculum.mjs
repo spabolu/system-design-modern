@@ -1,4 +1,15 @@
 import {fromMarkdown} from 'mdast-util-from-markdown';
+import {math} from 'micromark-extension-math';
+import {mathFromMarkdown} from 'mdast-util-math';
+import {gfmTable} from 'micromark-extension-gfm-table';
+import {gfmTableFromMarkdown} from 'mdast-util-gfm-table';
+
+export function parseMarkdown(source, {tables = true} = {}) {
+  return fromMarkdown(source, {
+    extensions: [math(), ...(tables ? [gfmTable()] : [])],
+    mdastExtensions: [mathFromMarkdown(), ...(tables ? [gfmTableFromMarkdown()] : [])],
+  });
+}
 
 export function parseCurriculum(source) {
   const section = source.split(/^## Curriculum\s*$/m)[1]?.split(/^## /m)[0];
@@ -34,7 +45,7 @@ export function sectionHeadings(source) {
   return markdownSections(source).map(({heading}) => heading);
 }
 
-export function markdownSections(source, document = fromMarkdown(source)) {
+export function markdownSections(source, document = parseMarkdown(source)) {
   const sections = [];
   const ancestors = [];
   const lines = source.split('\n');
