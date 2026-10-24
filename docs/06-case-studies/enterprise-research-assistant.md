@@ -79,7 +79,6 @@ A user sees nothing until the first claim's citation passes a check:
 - **Research job.** A background question with a status, plan, token budget, and findings.
 - **Report.** Claims, each citing at least one passage.
 - **Citation.** A pointer from a claim to a span of a chunk.
-- **Eval case.** A question, the user asking it, and the passages a good answer cites.
 
 ## API
 
@@ -436,13 +435,13 @@ This serves non-functional requirement 5. A wiki page can say "put any salary fi
 
 #### Great solution: Remove the way out
 
-**Approach.** Make the third leg impossible in code and keep the scanner as a signal. Tools take IDs, never URLs, and none sends, posts, or fetches from outside. The renderer outputs plain text plus citation links it builds from `itemId`, and strips images, HTML, and every other link. The client's content security policy allows requests only to the assistant's own origin, so a renderer bug can't load an outside URL. Subagents return typed findings that code validates, so a poisoned page reaches the lead as one cited claim. Flagged chunks are dropped and reported to the item's owner and security.
+**Approach.** Make the third leg impossible in code and keep the scanner as a signal. Tools take IDs, never URLs, and none sends, posts, or fetches from outside. The renderer outputs plain text plus citation links it builds from `itemId`, and strips images, HTML, and every other link. The client's content security policy allows requests only to the assistant's own origin, so a renderer bug can't load an outside URL. Subagents return typed findings that code validates, so a poisoned page reaches the lead as one cited claim. Flagged chunks are dropped and reported to the item's owner and security, with only the item and chunk ID and never the asker's question.
 
 ```mermaid
 flowchart LR
   DOC["Poisoned shared page"] --> IDX[("Search index")]
   IDX -->|"filtered chunks"| SH{"Prompt Shields"}
-  SH -->|flagged| OWN["Drop, notify owner"]
+  SH -->|flagged| OWN["Drop, notify owner (item and chunk ID only)"]
   SH -->|clean| AG["Agent (ID-only tools)"]
   AG -->|"typed findings"| JS[("Job store")]
   JS --> RND["Renderer (text + own citation links)"]
@@ -477,7 +476,7 @@ $$
 \text{pass}^k = \mathbb{E}_{\text{task}}\left[\binom{c}{k} \Big/ \binom{n}{k}\right]
 $$
 
-A case that passes 95% of the time passes all 5 runs only $0.95^5 \approx 77\%$ of the time, so flakiness shows. Quality metrics have targets, and leaks have a ceiling of zero across every run of every case, so one leak blocks the release. In production, code leak-checks every answer, a 2% sample goes to the judge, and the canaries from deep dive 1 run every 5 minutes. Every failure and red-team finding becomes an eval case, and evals run on a batch deployment at half price.
+A case that passes 95% of the time passes all 5 runs only $0.95^5 \approx 77\%$ of the time, so flakiness shows. Quality metrics have targets, and leaks have a ceiling of zero across every run of every case, so one leak blocks the release. In production, code leak-checks every answer, a 2% sample goes to the judge, and the canaries from deep dive 1 run every 5 minutes. A `403` when a user opens a citation is tracked too, since it's a live sign of a leak or a stale ACL. Every failure and red-team finding becomes an eval case, and evals run on a batch deployment at half price.
 
 ```mermaid
 flowchart LR
@@ -532,11 +531,11 @@ flowchart LR
 | Jobs, findings, reports | Azure Cosmos DB for NoSQL | Jobs and reports keyed by `/userId`, findings by `/jobId`. |
 | Identity and membership | Microsoft Entra ID, Microsoft Graph | On-behalf-of tokens for citation checks, and delta queries for groups and files. |
 | Injection detection | Azure AI Content Safety | Prompt Shields document attack detection on every chunk. |
-| Evaluation and tracing | Foundry observability, Application Insights | Continuous evaluation of a 2% sample, scheduled evaluation and red teaming, and OpenTelemetry traces ([observability](https://learn.microsoft.com/azure/foundry/concepts/observability)). |
+| Evaluation and tracing | Foundry observability, Application Insights | Continuous evaluation of a 2% sample, recurring evaluations and red team scans (both preview), and OpenTelemetry traces ([observability](https://learn.microsoft.com/azure/foundry/concepts/observability)). |
 
 ### Why these tiers
 
-- **A security filter over native access control.** AI Search trims results per user with security filters, which are generally available, or natively with ACL and RBAC scopes for ADLS Gen2 and Blob, Purview sensitivity labels, and SharePoint ACLs, all three in preview ([document-level access](https://learn.microsoft.com/azure/search/search-document-level-access-overview)). The native options can't express a repository or channel principal, and the SharePoint indexer skips organization-wide and anyone links and needs an explicit refresh for permissions inherited from a parent site, library, list, or folder ([SharePoint ACLs](https://learn.microsoft.com/azure/search/search-indexer-sharepoint-access-control-lists)). One filter on `allowedPrincipals` covers all four sources. Indexed Purview labels, projected onto each chunk by an indexer with elevated Purview roles ([sensitivity labels](https://learn.microsoft.com/azure/search/search-indexer-sensitivity-labels)), could later add a second filter that keeps highly confidential content out.
+- **A security filter over native access control.** AI Search trims results per user with security filters, which are generally available, or natively with ACL and RBAC scopes (ACLs for ADLS Gen2 only, RBAC for ADLS Gen2 and Blob), Purview sensitivity labels, and SharePoint ACLs, all three in preview ([document-level access](https://learn.microsoft.com/azure/search/search-document-level-access-overview)). The native options can't express a repository or channel principal, and the SharePoint indexer skips organization-wide and anyone links and needs an explicit refresh for permissions inherited from a parent site, library, list, or folder ([SharePoint ACLs](https://learn.microsoft.com/azure/search/search-indexer-sharepoint-access-control-lists)). One filter on `allowedPrincipals` covers all four sources. Indexed Purview labels, projected onto each chunk by an indexer with elevated Purview roles ([sensitivity labels](https://learn.microsoft.com/azure/search/search-indexer-sensitivity-labels)), could later add a second filter that keeps highly confidential content out.
 - **Index sizing.** 205 GB of vectors exceeds one S2 partition's 150 GB vector quota ([limits](https://learn.microsoft.com/azure/search/search-limits-quotas-capacity)), and int8 scalar quantization shrinks it fourfold, to about 51 GB ([quantization](https://learn.microsoft.com/azure/search/vector-search-how-to-quantization)). Two partitions leave room to rebuild beside the live index with a new embedding model. Three replicas is the SLA minimum for a service that indexes and serves queries ([AI Search reliability](https://learn.microsoft.com/azure/reliability/reliability-ai-search)).
 - **Durable Task Scheduler.** It's the recommended durable backend and runs on any compute through the Durable Task SDKs ([Durable Task Scheduler](https://learn.microsoft.com/azure/azure-functions/durable/durable-task-scheduler/durable-task-scheduler)). Subagents map to fan-out and fan-in ([fan-out/fan-in](https://learn.microsoft.com/azure/azure-functions/durable/durable-functions-fan-in-fan-out)), and because orchestrators replay and must be deterministic, every model call, search, and read is an activity ([code constraints](https://learn.microsoft.com/azure/azure-functions/durable/durable-functions-code-constraints)). Foundry Agent Service hosted agents could run the same code behind a managed endpoint ([Agent Service](https://learn.microsoft.com/azure/foundry/agents/overview)), but I'd keep the budget, cancel flag, and checkpoints in an orchestrator I control.
 - **Three deployment types.** Data Zone Provisioned suits the quick path's steady 5 million TPM, and capped jobs pay per token on Data Zone Standard. Evals use Data Zone Batch at half price, with its own enqueued-token quota so they don't eat live quota ([deployment types](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/deployment-types)). Data Zone deployments keep processing inside the US, EU, or APAC zone.
