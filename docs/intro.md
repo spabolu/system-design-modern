@@ -9,9 +9,6 @@ operate, and change. This personal curriculum starts with the vocabulary, builds
 up the common components and patterns, and then applies them to complete designs.
 It is for learning how to reason about architecture, not memorizing a diagram.
 
-The curriculum is under construction. Pages with an outline and no explanation
-are planned topics, not finished lessons.
-
 ## The learning path
 
 Work through the levels in order. If you already know a topic, use its
@@ -46,11 +43,21 @@ Concept pages in levels 1 through 5 use the same sections:
 - **Interview tips** covers common traps and follow-up questions.
 - **Further reading** links to the sources behind the explanation.
 
-Case studies begin with **TL;DR**, then work through **Requirements**,
-**Capacity estimates**, **Core entities and API**, **High-level design**, and
-**Deep dives**. They end with **On Azure**, **Interview tips**, and
-**Further reading**. The high-level design and Azure architecture each have a
-Mermaid diagram.
+Case studies follow the order of a system design interview, modeled on
+[Hello Interview's delivery framework](https://www.hellointerview.com/learn/system-design/in-a-hurry/delivery):
+
+- **Understanding the problem** frames what is being built.
+- **Functional requirements** and **Non-functional requirements** name what the
+  system does and the qualities it must hold, with numbers.
+- **Core entities** and **API** define the data and the interface.
+- **High-level design** builds one functional requirement at a time, each step
+  with its own diagram.
+- **Deep dives** take the hardest non-functional requirements one at a time and
+  climb a ladder of Bad, Good, and Great solutions, naming what each rung costs.
+- **On Azure** maps the design to services, tiers, and configuration.
+- **What is expected at each level** says what a mid-level, senior, and staff+
+  candidate should cover.
+- **Further reading** links to the sources.
 
 ## Azure is the only cloud
 
