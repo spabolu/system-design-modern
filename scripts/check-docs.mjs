@@ -1,14 +1,17 @@
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
-import {resolve} from 'node:path';
+import {posix, resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
+import {fromMarkdown} from 'mdast-util-from-markdown';
 import {parseCurriculum, markdownSections, sectionHeadings} from './curriculum.mjs';
 import {readTextFiles} from './files.mjs';
+import {parseMermaid} from './mermaid.mjs';
 
 const {load, JSON_SCHEMA} = createRequire(import.meta.url)('js-yaml');
 
 export const bannedTerms = [
-  'AWS', 'Amazon Web Services', 'Amazon S3', 'S3', 'DynamoDB', 'AWS Lambda',
+  'AWS', 'Amazon Web Services', 'Amazon S3', 'AWS S3', 'S3 bucket', 'S3 buckets',
+  'S3 API', 'S3-compatible', 'DynamoDB', 'AWS Lambda',
   'EC2', 'SQS', 'SNS', 'Kinesis', 'CloudFront', 'Route 53', 'Aurora',
   'Redshift', 'ElastiCache', 'EKS', 'ECS', 'Fargate', 'GCP', 'Google Cloud',
   'BigQuery', 'Cloud Bigtable', 'Cloud Spanner', 'Cloud Pub/Sub',
@@ -126,9 +129,10 @@ export function checkDoc({
   return diagnostics;
 }
 
-export function checkProject({registrySource, files}, {strict = false} = {}) {
-  const levels = parseCurriculum(registrySource);
+export async function checkProject({registrySource, files}, {strict = false} = {}) {
+  const levels = parseCurriculum(registrySource).map((level, order) => ({...level, order}));
   const diagnostics = [];
+  const diagrams = [];
   const templates = new Map();
   for (const name of ['concept', 'case-study']) {
     const path = `templates/${name}.md`;
@@ -155,6 +159,31 @@ export function checkProject({registrySource, files}, {strict = false} = {}) {
     }
     if (!/^docs\/.*\.mdx?$/.test(path)) continue;
     const level = levels.find(({folder}) => path.startsWith(`${folder}/`));
+    const links = [];
+    const definitions = new Map();
+    const visit = (node) => {
+      if (node.type === 'code' && node.lang === 'mermaid') {
+        diagrams.push({path, line: node.position.start.line, source: node.value});
+      }
+      if (node.type === 'link' || node.type === 'linkReference') links.push(node);
+      if (node.type === 'definition') definitions.set(node.identifier, node.url);
+      node.children?.forEach(visit);
+    };
+    visit(fromMarkdown(source));
+    if (level && level.number !== 6 && level.folder !== 'docs/04-azure') {
+      for (const link of links) {
+        const url = link.url ?? definitions.get(link.identifier);
+        if (!url || /^(?:[a-z][a-z\d+.-]*:|\/)/i.test(url)) continue;
+        const destination = url.split(/[?#]/)[0];
+        if (!destination.endsWith('.md')) continue;
+        const targetPath = posix.join(posix.dirname(path), destination);
+        const target = levels.find(({folder}) => targetPath.startsWith(`${folder}/`));
+        if (target && target.folder !== 'docs/04-azure' && target.order > level.order) {
+          diagnostics.push(error(path, link.position.start.line,
+            `Link to "${url}" goes to a higher curriculum level (${target.label}).`));
+        }
+      }
+    }
     if (/^docs\/\d{2}-[^/]+\//.test(path) && !registry.has(path)) {
       diagnostics.push(error(path, 1, 'Doc file is not registered in the curriculum.'));
     }
@@ -167,6 +196,11 @@ export function checkProject({registrySource, files}, {strict = false} = {}) {
       diagramSections: level?.number === 6 ? ['High-level design', 'On Azure'] : ['How it works'],
     }, {strict}));
   }
+  const diagramDiagnostics = await Promise.all(diagrams.map(async ({path, line, source}) => {
+    const message = await parseMermaid(source);
+    return message ? error(path, line, `Invalid mermaid diagram: ${message}`) : undefined;
+  }));
+  diagnostics.push(...diagramDiagnostics.filter(Boolean));
   return diagnostics;
 }
 
@@ -174,7 +208,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   try {
     const root = process.cwd();
     const files = readTextFiles(root, ['docs', 'blog', 'src', 'templates']);
-    const diagnostics = checkProject({
+    const diagnostics = await checkProject({
       registrySource: readFileSync(resolve(root, 'CONTRIBUTING.md'), 'utf8'), files,
     }, {strict: process.argv.includes('--strict')});
     for (const {path, line, severity, message} of diagnostics) {

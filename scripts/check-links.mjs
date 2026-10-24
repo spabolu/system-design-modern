@@ -1,4 +1,5 @@
 import {resolve} from 'node:path';
+import {setTimeout as sleep} from 'node:timers/promises';
 import {pathToFileURL} from 'node:url';
 import {readTextFiles} from './files.mjs';
 
@@ -35,21 +36,40 @@ export function indexExternalLinks(files) {
   return links;
 }
 
-export async function checkLink(url, {timeout = 15_000, fetchImpl = fetch} = {}) {
+function retryDelay(retryAfter, attempt, now, random) {
+  let wait = NaN;
+  if (retryAfter?.trim()) {
+    const seconds = Number(retryAfter);
+    wait = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(retryAfter) - now();
+  }
+  if (!Number.isFinite(wait)) wait = 1000 * 2 ** attempt + random() * 1000;
+  return Math.min(30_000, Math.max(0, wait));
+}
+
+export async function checkLink(url, {
+  timeout = 15_000, fetchImpl = fetch, maxRetries = 3,
+  sleepImpl = sleep, now = Date.now, random = Math.random,
+} = {}) {
   try {
-    const response = await fetchImpl(url, {
-      method: 'GET',
-      redirect: 'follow',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; ModernSystemDesignLinkChecker/1.0)',
-        Accept: 'text/html,application/xhtml+xml,*/*;q=0.8',
-      },
-      signal: AbortSignal.timeout(timeout),
-    });
-    await response.body?.cancel();
-    const kind = response.ok ? 'ok' :
-      [401, 403, 429].includes(response.status) ? 'unverified' : 'failure';
-    return {url, kind, detail: `HTTP ${response.status}`};
+    for (let attempt = 0; ; attempt += 1) {
+      const response = await fetchImpl(url, {
+        method: 'GET',
+        redirect: 'follow',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; ModernSystemDesignLinkChecker/1.0)',
+          Accept: 'text/html,application/xhtml+xml,*/*;q=0.8',
+        },
+        signal: AbortSignal.timeout(timeout),
+      });
+      await response.body?.cancel();
+      if (response.status === 429 && attempt < maxRetries) {
+        await sleepImpl(retryDelay(response.headers.get('retry-after'), attempt, now, random));
+        continue;
+      }
+      const kind = response.ok ? 'ok' :
+        [401, 403, 429].includes(response.status) ? 'unverified' : 'failure';
+      return {url, kind, detail: `HTTP ${response.status}`};
+    }
   } catch (cause) {
     return {
       url,
@@ -59,18 +79,32 @@ export async function checkLink(url, {timeout = 15_000, fetchImpl = fetch} = {})
   }
 }
 
-export async function checkLinks(files, {concurrency = 8, ...options} = {}) {
-  const links = [...indexExternalLinks(files)];
-  const results = new Array(links.length);
-  let next = 0;
-  async function worker() {
-    while (next < links.length) {
-      const index = next++;
-      const [url, paths] = links[index];
-      results[index] = {...await checkLink(url, options), paths: [...paths].sort()};
-    }
+export async function checkLinks(files, {concurrency = 8, perHostConcurrency = 2, ...options} = {}) {
+  for (const [name, value] of Object.entries({concurrency, perHostConcurrency})) {
+    if (!Number.isInteger(value) || value < 1) throw new Error(`${name} must be a positive integer.`);
   }
-  await Promise.all(Array.from({length: Math.min(concurrency, links.length)}, worker));
+  const pending = [...indexExternalLinks(files)].map(([url, paths], index) => ({
+    url, paths, index, host: new URL(url).host,
+  }));
+  const results = new Array(pending.length);
+  const activeByHost = new Map();
+  const running = new Set();
+  while (pending.length || running.size) {
+    while (running.size < concurrency) {
+      const next = pending.findIndex(({host}) => (activeByHost.get(host) ?? 0) < perHostConcurrency);
+      if (next < 0) break;
+      const [{url, paths, index, host}] = pending.splice(next, 1);
+      activeByHost.set(host, (activeByHost.get(host) ?? 0) + 1);
+      const request = checkLink(url, options).then((result) => {
+        results[index] = {...result, paths: [...paths].sort()};
+      }).finally(() => {
+        activeByHost.set(host, activeByHost.get(host) - 1);
+        running.delete(request);
+      });
+      running.add(request);
+    }
+    await Promise.race(running);
+  }
   return results;
 }
 
