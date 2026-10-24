@@ -32,9 +32,12 @@ export function checkBannedTerms(path, source) {
     error(path, lineAt(source, match.index), `Azure-only rule forbids "${match[0]}".`));
 }
 
+function hasMermaid(node) {
+  return (node.type === 'code' && node.lang === 'mermaid') || Boolean(node.children?.some(hasMermaid));
+}
+
 function sectionContent(lines) {
   let fence;
-  let mermaid = false;
   const text = [];
   for (const line of lines) {
     const marker = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
@@ -45,15 +48,12 @@ function sectionContent(lines) {
       }
     } else if (marker) {
       fence = marker[1];
-      if (marker[1][0] === '`' && /^mermaid(?:\s|$)/.test(marker[2].trim())) {
-        mermaid = true;
-      }
     } else {
       text.push(line);
     }
   }
   return {
-    mermaid,
+    mermaid: hasMermaid(fromMarkdown(lines.join('\n'))),
     text: text.join('\n').replace(/<!--[\s\S]*?-->/g, '')
       .replace(/^ {0,3}#{1,6}\s.*$/gm, '').trim(),
   };
