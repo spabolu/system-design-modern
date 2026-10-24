@@ -1,0 +1,9 @@
+{
+  "label": "4. Architecting on Azure",
+  "position": 5,
+  "link": {
+    "type": "generated-index",
+    "slug": "/04-azure",
+    "description": "Choose Azure services and design for reliability, security, and cost."
+  }
+}

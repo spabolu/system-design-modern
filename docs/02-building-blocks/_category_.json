@@ -1,0 +1,9 @@
+{
+  "label": "2. Building blocks",
+  "position": 3,
+  "link": {
+    "type": "generated-index",
+    "slug": "/02-building-blocks",
+    "description": "Understand the components that store, move, and serve data."
+  }
+}
