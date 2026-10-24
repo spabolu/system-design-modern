@@ -16,7 +16,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run check
-      - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - if: github.repository == 'spabolu/system-design-modern' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
           name: site
@@ -24,7 +24,7 @@ jobs:
 
   deploy:
     needs: check
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.repository == 'spabolu/system-design-modern' && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     concurrency: production
     steps:

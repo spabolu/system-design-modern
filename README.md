@@ -65,7 +65,9 @@ The Check workflow tests and builds the site, and its `deploy` job uploads
 that build with the `Azure/static-web-apps-deploy` action.
 
 The action reads the app's deployment token from the
-`AZURE_STATIC_WEB_APPS_API_TOKEN` repository secret. To set or rotate it:
+`AZURE_STATIC_WEB_APPS_API_TOKEN` repository secret. To rotate the token,
+first run `az staticwebapp secrets reset-api-key -n swa-system-design-modern
+-g rg-docusaurus`. Then copy the current token into the secret:
 
 ```bash
 az staticwebapp secrets list -n swa-system-design-modern -g rg-docusaurus \
