@@ -1,5 +1,5 @@
 {
-  "name": ".",
+  "name": "system-design-modern",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -12,12 +12,18 @@
     "serve": "docusaurus serve",
     "write-translations": "docusaurus write-translations",
     "write-heading-ids": "docusaurus write-heading-ids",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "lint:docs": "node scripts/check-docs.mjs --strict",
+    "check": "npm run lint:docs && npm run build",
+    "check:links": "node scripts/check-links.mjs",
+    "test": "node --test scripts/"
   },
   "dependencies": {
     "@docusaurus/core": "3.10.2",
     "@docusaurus/faster": "3.10.2",
     "@docusaurus/preset-classic": "3.10.2",
+    "@docusaurus/theme-mermaid": "3.10.2",
+    "@easyops-cn/docusaurus-search-local": "0.55.3",
     "@mdx-js/react": "^3.0.0",
     "clsx": "^2.0.0",
     "prism-react-renderer": "^2.3.0",
@@ -29,6 +35,8 @@
     "@docusaurus/tsconfig": "3.10.2",
     "@docusaurus/types": "3.10.2",
     "@types/react": "^19.0.0",
+    "jsdom": "26.1.0",
+    "mdast-util-from-markdown": "2.1.0",
     "typescript": "~6.0.2"
   },
   "browserslist": {

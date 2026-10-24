@@ -1,0 +1,24 @@
+.levels {
+  padding: 3rem 0;
+}
+
+.column {
+  margin-bottom: 1.5rem;
+}
+
+.card {
+  height: 100%;
+  color: var(--ifm-font-color-base);
+  border: 1px solid var(--ifm-color-emphasis-300);
+}
+
+.card:hover,
+.card:focus-visible {
+  color: var(--ifm-font-color-base);
+  border-color: var(--ifm-color-primary);
+  text-decoration: none;
+}
+
+.card p {
+  margin-bottom: 0;
+}
