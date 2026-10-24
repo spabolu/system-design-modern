@@ -96,6 +96,8 @@ The trap is jumping to caching for a workload whose reads rarely repeat. If each
 
 **Tier choice.** On Azure SQL Database, Premium and Business Critical already run secondary replicas at the same compute size as the primary for high availability. Read scale-out lets reporting and analytics queries use one of them. If you chose Business Critical for availability, point read-only traffic there before you add a cache for it. General Purpose has no readable secondary, so the same workload would need a geo-replica or a cache.
 
+[Data choices](../04-azure/data-choices.md) covers the tiers and consistency settings for each of these stores.
+
 **Gotcha.** Two Cosmos DB settings quietly turn off what you paid for. The integrated cache only serves reads at session or eventual consistency; a read at bounded staleness or strong bypasses it and pays full request units. And session tokens live in the client SDK instance. A user whose next request lands on a different app server, or on a freshly started one, reads with eventual consistency unless you pass the session token back with the request.
 
 ## Interview tips

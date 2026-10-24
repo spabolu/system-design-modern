@@ -132,7 +132,7 @@ Each Azure data service sells and limits capacity in its own unit. Convert your 
 
 **Gotcha: limits apply per partition, account, and unit, not just in total.** A container provisioned at 100,000 RU/s still throttles a single logical partition at 10,000 RU/s. Event Hubs works the same way. Learn suggests planning on about 1 MB/s of ingress per partition on the Standard tier, so a partition key that routes a busy tenant's events to one partition holds that tenant near that rate, however many throughput units the namespace has. Estimate the hottest key as well as the total, and compare it with the per-partition limit.
 
-Later levels cover sharding and partitioning, caching, and CDNs, which are the usual fixes when an estimate crosses one of these lines.
+Later levels cover sharding and partitioning, caching, and CDNs, which are the usual fixes when an estimate crosses one of these lines. [Data choices](../04-azure/data-choices.md) lists the tiers and limits for each Azure store.
 
 ## Interview tips
 

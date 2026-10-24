@@ -80,7 +80,7 @@ The rest of this section builds the vocabulary for answering them: [networking](
 
 ## On Azure
 
-Each generic block has a managed Azure equivalent. Later levels give each its own page, including an Azure service map and separate pages on compute, data, and messaging choices.
+Each generic block has a managed Azure equivalent. Later levels give each its own page, including an [Azure service map](../04-azure/azure-service-map.md) and separate pages on [compute](../04-azure/compute-choices.md), [data](../04-azure/data-choices.md), and [messaging](../04-azure/messaging-choices.md) choices.
 
 | Generic block | Azure service | What to know first |
 | --- | --- | --- |
@@ -96,7 +96,7 @@ Each generic block has a managed Azure equivalent. Later levels give each its ow
 | Event stream | Azure Event Hubs | Partitioned log that also speaks the Kafka protocol |
 | Object storage | Azure Blob Storage | Large files, backups, and static content |
 
-**A checklist for the non-functional side.** The Azure Well-Architected Framework groups system qualities into five pillars. They are Reliability, Security, Cost Optimization, Operational Excellence, and Performance Efficiency. Walk your design against each one before calling it done. The pass usually surfaces the requirement nobody asked about, and that is most often security or operations.
+**A checklist for the non-functional side.** The [Azure Well-Architected Framework](../04-azure/well-architected-framework.md) groups system qualities into five pillars. They are Reliability, Security, Cost Optimization, Operational Excellence, and Performance Efficiency. Walk your design against each one before calling it done. The pass usually surfaces the requirement nobody asked about, and that is most often security or operations.
 
 **Zones and regions shape the topology.** An Azure region contains availability zones, which are separate datacenter groups usually within 100 km of each other, with inter-zone round trips under about 2 ms. Zone-redundant deployment survives a datacenter failure at almost no latency cost. Surviving a full region outage takes a second region, and cross-region round trips run tens to hundreds of milliseconds. That gap forces the consistency decisions covered later in this section.
 

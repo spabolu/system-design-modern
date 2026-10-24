@@ -150,6 +150,8 @@ Every technique above still funnels writes for one key through one place. When a
 
 **Cosmos DB.** Every item has a server-generated `_etag` that changes on each write. Send it as `If-Match` on replace or patch and Cosmos DB rejects stale writes with HTTP 412. Use container TTL to garbage-collect expired reservations. An expired item stops appearing in queries right away, but the physical delete runs on leftover request units and can lag, which is another reason to check `expires_at` in your conditions.
 
+[Data choices](../04-azure/data-choices.md) compares these stores and their consistency settings.
+
 **Gotcha.** With multi-region writes on Cosmos DB, the ETag check only runs against the local region. Two regions can accept conflicting writes to the same item, and the default conflict resolution policy is last writer wins on the `_ts` timestamp. If an invariant must never break (one seat, one buyer), route those writes to a single write region or partition ownership by region.
 
 ## Interview tips

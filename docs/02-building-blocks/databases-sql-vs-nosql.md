@@ -96,6 +96,8 @@ Relational databases default to strong consistency on the primary and let you ch
 
 A common Azure layout: Azure SQL Database or PostgreSQL for accounts, orders, and payments; Cosmos DB for high-volume per-user data such as carts, sessions, feeds, and device state; [Azure Managed Redis](./caching.md) in front of both.
 
+[Data choices](../04-azure/data-choices.md) walks through the decision between these stores and the tiers that change it.
+
 ## Interview tips
 
 - Start from access patterns. List the top three reads and writes with their rates, then pick the store. Say it out loud: "Read by order ID, list by customer, need atomic inventory decrement."

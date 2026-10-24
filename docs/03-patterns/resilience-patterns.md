@@ -104,6 +104,8 @@ A typical outbound call stacks the patterns from outside in: rate limiter or bul
 | Consumer concurrency cap | Azure Functions Service Bus trigger | `maxConcurrentCalls` (default 16 per instance) bounds how hard each instance hits downstream systems. |
 | Failure testing | Azure Chaos Studio | Experiments inject service-direct faults (VM shutdown, SQL Database failover, Redis cache flush) and agent-based faults (CPU and memory pressure). The newer Workspaces and Scenarios model is in preview. |
 
+[Regions, zones, and resiliency](../04-azure/regions-zones-and-resiliency.md) covers the zone and region redundancy these patterns sit on top of.
+
 **Gotcha.** API Management's backend circuit breaker honors `Retry-After`. Azure OpenAI can return `429` with a very long `Retry-After` (Microsoft's example is one day), which would keep the circuit open that long. Microsoft calls this out for Azure OpenAI backends, so set the rules with that in mind.
 
 **Gotcha.** Cosmos DB SDK retries and your own retry policy stack. If you wrap SDK calls in another retry loop, a throttled partition sees both layers. Tune the SDK's throttling retry options instead of adding a second layer.

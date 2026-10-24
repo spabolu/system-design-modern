@@ -98,6 +98,8 @@ When a deploy drains a server holding 50,000 sockets, all 50,000 clients reconne
 
 **Gotcha.** Azure Front Door does not support Server-Sent Events, and caps WebSocket use at 3,000 concurrent connections per profile with a 2-hour lifetime. If you stream LLM tokens over SSE behind Front Door, the stream breaks. Route SSE through Application Gateway or straight to the origin, and send high-volume WebSocket clients to Web PubSub's own endpoint rather than through Front Door.
 
+The [Azure service map](../04-azure/azure-service-map.md) compares Front Door and Application Gateway as entry points.
+
 ## Interview tips
 
 - Name both hops out loud. Picking "WebSockets" answers half the question. The next one is "how does the event find the right server?"

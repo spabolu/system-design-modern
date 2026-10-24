@@ -107,6 +107,8 @@ Thumbnails, transcoding, text extraction, and virus scanning take seconds to hou
 
 **SAS design.** Issue a user delegation SAS per upload, scoped to the single blob path with create and write permissions and an expiry of 15 to 60 minutes. Uncommitted blocks stay on the server and are garbage-collected after a week with no Put Block or Put Block List activity, which gives clients a generous resume window. Refresh the SAS when a resumed upload needs more time rather than issuing a long-lived one up front.
 
+[Cost optimization](../04-azure/cost-optimization.md) covers how blob access tiers fit the rest of the bill.
+
 **Gotcha.** `BlobCreated` can fire for operations that do not mean "the file is complete". Filter the Event Grid subscription to the `PutBlob`, `PutBlockList`, `CopyBlob`, and `FlushWithClose` API calls so the event fires only after the data is fully committed. Without the filter, your processor can pick up a blob before its data is fully committed and transcode or scan an incomplete file.
 
 ## Interview tips

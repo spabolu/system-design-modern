@@ -105,6 +105,8 @@ Sagas give up isolation. Another request can read an order after stock was reser
 
 **Microsoft's reference outbox.** The Azure Architecture Center sample writes the business object and its events in one Cosmos DB transactional batch, tails the change feed, publishes to Service Bus with the partition key as the session ID, and turns on Service Bus duplicate detection to absorb re-publishes after a relay restart.
 
+[Compute choices](../04-azure/compute-choices.md) covers where to host the orchestrator, whether Functions, Container Apps, or AKS.
+
 **Gotcha.** Durable Functions retry policies default to a backoff coefficient of 1 (a constant interval) and no retry timeout, so retries continue until the attempt count runs out. Set the coefficient (2 is common), the maximum attempts, and a retry timeout on each activity call rather than accepting defaults.
 
 **Gotcha.** Orchestrator replay makes `DateTime.UtcNow`, `Guid.NewGuid()`, environment variables, and direct HTTP calls unsafe in orchestrator code. Use `context.CurrentUtcDateTime`, generate IDs in activities, and make outbound calls from activities or the durable HTTP APIs. A nondeterministic orchestrator takes a different path on replay than it took the first time.

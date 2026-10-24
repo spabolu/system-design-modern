@@ -90,6 +90,8 @@ Queries that lack the shard key become scatter-gather: send to every shard, merg
 
 Partitioning shows up elsewhere too: Event Hubs partitions ([Event streaming](./event-streaming.md)) and the Blob Storage partition key of account, container, and blob name ([Blob storage](./blob-storage.md)).
 
+[Data choices](../04-azure/data-choices.md) compares these stores before you commit to a partitioning scheme.
+
 ## Interview tips
 
 - Say why you need to shard, with numbers. "One PostgreSQL primary handles our 5,000 writes per second" is a valid reason not to.

@@ -97,6 +97,8 @@ Instead of updating a row, append an event to the entity's stream.
 
 Microsoft's own comparison sums it up as Event Grid for reactive event routing, Event Hubs for big data streaming, and Service Bus for enterprise transactional messaging. A common design uses all three: Event Grid announces that a blob arrived, Event Hubs ingests telemetry, and Service Bus carries the order commands.
 
+[Messaging choices](../04-azure/messaging-choices.md) covers the tier limits and delivery guarantees behind that split.
+
 **Gotcha.** The Cosmos DB change feed in its default latest version mode shows only the most recent version of each item. If a document is updated twice in quick succession, a projector may see only the second update. For event sourcing, model every change as a new item (append-only, never update), or use all versions and deletes mode. Deletes and TTL expirations also appear only in all versions and deletes mode.
 
 **Gotcha.** Event Hubs keeps events for a bounded window, so it is not an event store by itself. Use Capture or a database for long-term history and treat the hub as the distribution layer.

@@ -102,6 +102,8 @@ Do not rewrite the monolith in one release. Put a routing facade (a gateway or r
 
 **Choosing compute.** Microsoft's container service guide frames it as simplicity versus control. App Service is the simplest, Container Apps sits in the middle, and AKS gives the most control at the highest operational cost. A team without dedicated platform engineers should start at Container Apps or App Service and move to AKS only for a concrete need such as custom operators or service mesh configuration.
 
+[Compute choices](../04-azure/compute-choices.md) walks through the same decision with scaling limits and zone settings.
+
 **Gotcha.** Dapr service invocation and pub/sub make calls look local, but they are still network calls. Each still needs a timeout, retries for idempotent operations, and a plan for partial failure. Dapr component resiliency policies (retries, timeouts, circuit breakers; in preview on Container Apps) help, but they do not remove the design work.
 
 ## Interview tips

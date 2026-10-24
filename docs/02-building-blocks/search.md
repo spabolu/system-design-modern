@@ -113,6 +113,8 @@ Partitions split the index, much like [sharding](./sharding-and-partitioning.md)
 
 If the data already lives in Azure Database for PostgreSQL and the search needs are simple, its full-text search and pgvector may be enough.
 
+[Data choices](../04-azure/data-choices.md) shows where AI Search fits among the other Azure data stores.
+
 ## Interview tips
 
 - Say early that the database is the source of truth and the search index is a derived, eventually consistent copy, then draw the sync pipeline.

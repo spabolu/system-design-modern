@@ -110,6 +110,8 @@ Retry at one layer only. If the client, the gateway, and the service each retry 
 | Fast key checks | Azure Managed Redis | `SET key value NX EX seconds` claims a key atomically. Treat it as a cache in front of the durable record, not the only copy. |
 | Events that arrive more than once | Azure Event Grid | Delivers at least once, with no ordering guarantee, so handlers must deduplicate by event `id`. |
 
+[Messaging choices](../04-azure/messaging-choices.md) compares the delivery guarantees of each Azure broker.
+
 **Gotcha.** Service Bus duplicate detection only works if the `MessageId` is derived from the business action, such as `order-12345-placed`. If the producer generates a fresh GUID on each send attempt, every retry looks new and nothing is dropped. Microsoft's guidance is to tie the ID to a context that can be reconstructed after a failure. A large window also slows the entity, since every send is checked against the stored IDs, so keep it as short as your producer's retry horizon.
 
 **Gotcha.** Broker deduplication does not make consumers idempotent. A message can still be delivered twice when a consumer's lock expires or its acknowledgment fails, so the consumer needs its own check.

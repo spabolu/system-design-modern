@@ -91,7 +91,7 @@ Redundancy only helps if traffic moves away from the failed copy. That takes hea
 
 **Gotcha: an SLA covers what it defines, not what your users see.** The Well-Architected Framework uses App Service as the example. Web Apps counts as available when it returns 200 OK for the covered case, and that financial guarantee doesn't extend to features such as Easy Auth or deployment slot switching. Read what each SLA counts as "available", treat everything outside it as best effort, and measure your own SLI at the edge. Service credits also don't come close to covering what an outage costs you.
 
-The Azure section of this site goes deeper on regions, zones, and resiliency.
+[Regions, zones, and resiliency](../04-azure/regions-zones-and-resiliency.md) goes deeper on these settings.
 
 ## Interview tips
 

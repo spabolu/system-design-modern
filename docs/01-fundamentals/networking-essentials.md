@@ -111,7 +111,7 @@ The difference matters most for long-lived connections. HTTP/2, gRPC, and WebSoc
 
 **Gotcha: Front Door doesn't carry gRPC, and it speaks HTTP/1.1 to origins.** Clients can reach Front Door over HTTP/2, but Front Door talks to your origin over HTTP/1.1, and it doesn't support gRPC. A gRPC API placed behind Front Door fails. For gRPC on AKS, use Application Gateway for Containers. For a public gRPC or other non-HTTP protocol outside AKS, use Load Balancer Standard in front of your own proxies. Learn lists HTTP/2 but not HTTP/3 for Front Door client connections, so confirm current support before you promise HTTP/3 to mobile clients.
 
-Later levels cover load balancing and CDNs as building blocks, and the Azure section has a networking and security page.
+Later levels cover load balancing and CDNs as building blocks, and [networking and security](../04-azure/networking-and-security.md) covers the Azure side.
 
 ## Interview tips
 

@@ -106,7 +106,7 @@ Inside a region, Cosmos DB commits every write to a majority of a four-replica s
 
 **Gotcha: Session consistency only works if the session token follows the user.** Cosmos DB assigns a session token on each write, and the SDK client uses it to serve read-your-writes. In a stateless tier behind a load balancer, the read often lands on a different app instance (and a different client) than the write. Learn states that a client with no token for that partition reads as if the level were Eventual, and a re-created client starts with no tokens. Tokens are scoped to a partition. Return the token from the write and pass it on the follow-up read, or route the user's follow-up reads to the same client. Otherwise you are effectively running at Eventual and the profile-edit bug comes back.
 
-The Azure section's data choices page compares these stores in more depth.
+The [data choices](../04-azure/data-choices.md) page compares these stores in more depth.
 
 ## Interview tips
 

@@ -105,6 +105,8 @@ Decisions that change the design:
 - **Zones.** Set Load Balancer frontends to zone-redundant; Learn recommends zone-redundant over zonal for all workloads. Deploy Application Gateway v2 across zones.
 - **A common stack.** Front Door (WAF, TLS, global routing) in front of a regional Application Gateway or Application Gateway for Containers, with an internal Standard Load Balancer for non-HTTP tiers. Lock origins so they accept traffic only from Front Door.
 
+The [Azure service map](../04-azure/azure-service-map.md) puts these balancers next to the gateway, CDN, and compute options.
+
 Gotcha: when a Load Balancer health probe fails, the balancer stops sending *new* connections to that instance, but established TCP connections continue. A hung instance with long-lived connections keeps its clients until they time out, so pair probes with client-side timeouts and reconnect logic.
 
 ## Interview tips

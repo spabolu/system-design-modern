@@ -93,7 +93,7 @@ Scaling on queue length usually beats scaling on CPU for background workers, bec
 
 **Gotcha: scale-out lag on scale-from-zero.** Container Apps evaluates its HTTP scale rule on concurrent requests over a 15-second window, and custom KEDA scalers poll every 30 seconds by default. An app that scales to zero takes the polling delay plus container start time to serve its first request after idle. For user-facing APIs, set the minimum to at least one replica per zone you want covered. Save scale-to-zero for background processors fed by a queue, where a short delay costs nothing.
 
-Later levels cover sharding and partitioning, replication, and caching as building blocks, and the Azure section compares compute and data choices.
+Later levels cover sharding and partitioning, replication, and caching as building blocks, and the Azure pages compare [compute](../04-azure/compute-choices.md) and [data](../04-azure/data-choices.md) choices.
 
 ## Interview tips
 

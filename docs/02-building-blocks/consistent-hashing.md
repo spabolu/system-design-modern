@@ -95,6 +95,8 @@ Most Azure data services place keys for you, so you choose a good key instead of
 
 You build consistent hashing yourself when you route to a fleet you run: self-hosted cache nodes on virtual machines, or a pool of chat servers in Azure Kubernetes Service where each conversation should land on the same server. Azure Load Balancer and Application Gateway route by connection or session affinity, not by your application key, so key-based routing lives in your client library or a routing tier you own.
 
+To choose among these stores, see [data choices](../04-azure/data-choices.md).
+
 ## Interview tips
 
 - Start with why `mod N` fails, with a number: "Going from 10 to 11 nodes remaps about 90% of keys."

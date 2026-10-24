@@ -99,6 +99,8 @@ Scale workers on queue depth or on the age of the oldest message, not on CPU. Ag
 
 **Choosing a worker.** Use Functions when each job is short and you want per-message triggers with little code. Use Container Apps jobs when a job needs its own container, a long run, or a runtime Functions does not cover, such as an ffmpeg pipeline. Use a long-running Container Apps app that reads the queue in a loop when jobs are small, frequent, and benefit from warm state.
 
+[Compute choices](../04-azure/compute-choices.md) compares Functions, Container Apps, and the other hosts in more depth.
+
 **Gotcha.** An HTTP-triggered function has 230 seconds to respond regardless of the function timeout, because of the default idle timeout of the Azure load balancer in front of it. Longer work must return early and continue in the background, which is the pattern on this page. Microsoft's guidance is the Durable Functions async pattern, or deferring the work and returning immediately.
 
 **Gotcha.** If processing outlasts the Service Bus lock and nobody renews it, the message reappears and a second worker starts the same job while the first is still running. Turn on automatic lock renewal in the SDK with a maximum duration longer than your slowest job, and keep the job idempotent anyway.

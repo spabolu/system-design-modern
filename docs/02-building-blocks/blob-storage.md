@@ -110,6 +110,8 @@ The secondary region in GRS or GZRS can't be read unless you fail over; RA-GRS a
 
 **Delivery and events.** Azure Front Door caches blobs at the edge with the storage account as its origin. With the Premium tier, Front Door reaches the account over Private Link, so the account need not be exposed to the public internet. Blob Storage publishes `BlobCreated` and other events to Event Grid for post-upload processing.
 
+[Data choices](../04-azure/data-choices.md) covers when data belongs in Blob Storage instead of a database.
+
 ## Interview tips
 
 - Separate metadata from bytes in the first minute: a table row with the blob name, and the file in Blob Storage.

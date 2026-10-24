@@ -103,6 +103,8 @@ Design points to know:
 
 Other cache layers: Azure Front Door caches HTTP responses at the edge (see [CDN and edge](./cdn-and-edge.md)), and API Management can cache responses at the gateway, including semantic caching of LLM completions backed by Azure Managed Redis (see [API gateway](./api-gateway.md)).
 
+The [Azure service map](../04-azure/azure-service-map.md) covers how to pick a Managed Redis tier by memory-to-vCPU ratio.
+
 ## Interview tips
 
 - Say where the cache sits and what it holds: "Redis in front of the user table, keyed by user ID, 5-minute TTL, delete on write."

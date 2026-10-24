@@ -103,6 +103,8 @@ Configuration choices that matter:
 - **AI gateway.** The `llm-token-limit` policy sets tokens-per-minute limits or token quotas per key. Semantic caching needs Azure Managed Redis or another RediSearch-compatible cache. Backend pools load-balance across model deployments (round robin, weighted, priority, session-aware) with circuit breaker rules.
 - **Placement.** Put Azure Front Door in front for global anycast and WAF, and keep APIM in a VNet so backends are never public.
 
+The [Azure service map](../04-azure/azure-service-map.md) shows where API Management sits next to Front Door and Application Gateway.
+
 Gotcha: APIM rate limit counters are kept per gateway and do not aggregate across the whole instance, so a multi-region Premium deployment enforces a "100 per minute" limit separately in each region. Learn also states that rate limiting is never completely accurate. If a limit is contractual, enforce it with a quota or in the backend, not only with `rate-limit-by-key`.
 
 ## Interview tips

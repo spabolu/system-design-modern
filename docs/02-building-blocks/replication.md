@@ -92,6 +92,8 @@ Any replica accepts writes. The client (or a coordinator) sends each write to N 
 
 Blob Storage replicates within and across regions too (LRS, ZRS, GRS, GZRS); see [Blob storage](./blob-storage.md).
 
+[Regions, zones, and resiliency](../04-azure/regions-zones-and-resiliency.md) shows how RTO and RPO targets pick between these options.
+
 ## Interview tips
 
 - State the topology and mode: "Primary with a synchronous standby in a second zone, async read replicas, and an async geo-replica in a paired region."

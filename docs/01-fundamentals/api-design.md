@@ -134,7 +134,7 @@ Azure API Management (APIM) sits in front of your APIs to handle keys, quotas, t
 
 **Idempotency with Cosmos DB.** Partition the keys container on the key itself, so each key is its own small logical partition and writes spread evenly. A create with an existing id fails with a conflict, which gives you the atomic check from the section above. A container-level TTL (in seconds) removes expired keys without a cleanup job.
 
-Later levels cover API gateways as a building block, and idempotency and retries as a pattern.
+Later levels cover API gateways as a building block, and idempotency and retries as a pattern. The [Azure service map](../04-azure/azure-service-map.md) shows where API Management sits next to Front Door and Application Gateway.
 
 ## Interview tips
 

@@ -99,6 +99,8 @@ It does not help `WHERE created_at > '2026-01-01'` on its own, because those row
 
 **Azure AI Search** builds inverted indexes for full-text search and HNSW indexes for vectors. See [Search](./search.md).
 
+[Data choices](../04-azure/data-choices.md) covers which of these stores fits an access pattern.
+
 ## Interview tips
 
 - When you write a query in the design, write its index next to it: "Feed reads use `(user_id, created_at DESC)`."

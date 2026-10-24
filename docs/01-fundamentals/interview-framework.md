@@ -100,7 +100,7 @@ Most interviewers are cloud-neutral, so lead with the generic component and its 
 | Requirements | Which regions | Azure publishes inter-region round trips. East US to West Europe is about 85 ms at P50, so one global write region puts a floor under far-away users. |
 | Core entities | Partition key | A Cosmos DB logical partition holds at most 20 GB and 10,000 RU/s, so a per-user key works and a per-country key does not. |
 | API | Edge and gateway | Azure Front Door for global HTTP entry, and API Management when you need versioning, keys, and quotas. |
-| High-level design | Service mapping | Map each box to a managed service. Later levels include an Azure service map page for this. |
+| High-level design | Service mapping | Map each box to a managed service. The [Azure service map](../04-azure/azure-service-map.md) covers this. |
 | Deep dives | Tier and SKU | API Management offers availability zones only on Premium and Premium v2. A zone-redundant design rules out cheaper tiers. |
 
 **Gotcha: service names in place of reasoning.** Saying "Cosmos DB" doesn't answer how the data is partitioned or what consistency a reader gets. If you name an Azure service, expect follow-up questions on its limits and be ready with the partition key, the consistency level, and the tier. If you can't answer those, describe the generic component instead.

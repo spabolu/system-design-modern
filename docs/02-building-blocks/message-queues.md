@@ -103,6 +103,8 @@ Retry transient failures with exponential backoff and jitter. For longer waits, 
 
 **Azure Event Grid** routes events to handlers by push delivery, or lets subscribers read them by pull delivery. It supports the CloudEvents 1.0 specification and MQTT for devices. Delivery is at least once with no ordering guarantee. Failed deliveries retry up to 30 attempts within a default 1,440-minute TTL; dead-lettering to a storage account is off by default, so turn it on, or undeliverable events are dropped.
 
+[Messaging choices](../04-azure/messaging-choices.md) covers the tier limits and delivery guarantees that decide between these four.
+
 ## Interview tips
 
 - Put a queue wherever work is slow, unreliable, or bursty, and say which of the three it solves.

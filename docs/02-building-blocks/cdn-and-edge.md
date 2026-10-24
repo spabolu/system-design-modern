@@ -114,6 +114,8 @@ Azure Front Door Standard and Premium are the CDN and global HTTP entry point. M
 
 **Operations.** A configuration change can take up to 15 minutes to propagate, and a purge completes within about 10 minutes with at most 100 URLs per request. Plan releases around versioned URLs so you rarely need either.
 
+[Networking and security](../04-azure/networking-and-security.md) covers the WAF and Private Link setup that pairs with Front Door Premium.
+
 Gotcha: if caching is enabled on a route and the origin sends no `Cache-Control` or `Expires` header, Front Door picks a random cache duration between one and three days. An API route that forgot its headers can serve stale responses for days. Always send explicit headers, and send `no-store` for anything personalized.
 
 ## Interview tips

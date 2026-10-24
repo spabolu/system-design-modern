@@ -121,6 +121,8 @@ Secrets that remain, such as a third-party API key, go in a secrets store with a
 
 **Azure API Management** validates tokens at the gateway with the `validate-jwt` policy (JWTs from an identity provider) or `validate-azure-ad-token` (Entra tokens), before requests reach the backends.
 
+[Networking and security](../04-azure/networking-and-security.md) shows how identity, Key Vault, and private networking fit into one design.
+
 ## Interview tips
 
 - Name the IdP and the flow in one sentence: "Users sign in through Entra External ID with the authorization code flow and PKCE; the app calls our APIs with access tokens."

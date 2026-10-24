@@ -105,7 +105,7 @@ Consumers often aggregate rather than handle events one by one: count clicks per
 - **Log compaction** keeps only the latest event per partition key, and isn't supported in the Basic tier.
 - **Disaster recovery.** Geo-disaster recovery replicates metadata only (the namespace configuration), so events in flight stay in the failed region. Geo-replication in Premium and Dedicated replicates both data and metadata.
 
-Event Hubs pairs with [Blob storage](./blob-storage.md) for Capture and checkpoints. For discrete events that trigger handlers (a file uploaded), use Event Grid; for business messages with locks and dead-lettering, use Service Bus. See [Message queues](./message-queues.md).
+Event Hubs pairs with [Blob storage](./blob-storage.md) for Capture and checkpoints. For discrete events that trigger handlers (a file uploaded), use Event Grid; for business messages with locks and dead-lettering, use Service Bus. See [Message queues](./message-queues.md) and [messaging choices](../04-azure/messaging-choices.md).
 
 ## Interview tips
 

@@ -98,6 +98,8 @@ Sharding is the step teams regret doing early. It is hard to undo and makes ever
 
 **Cosmos DB partition keys.** Throughput divides evenly across physical partitions. If one key takes most of the traffic, that partition returns 429 (rate limited) while the container's average utilization looks healthy. Choose a key with many distinct values and even traffic, and use a synthetic or hierarchical key when no natural field qualifies.
 
+[Data choices](../04-azure/data-choices.md) and [messaging choices](../04-azure/messaging-choices.md) cover the store and stream tiers in more depth.
+
 **Gotcha.** On Event Hubs Standard you cannot add partitions after creation; dynamic partition increases exist only on Premium and Dedicated. Even there, adding partitions changes which partition a key hashes to, which breaks per-key ordering for keyed producers. Size the partition count for peak consumer parallelism on day one.
 
 ## Interview tips
