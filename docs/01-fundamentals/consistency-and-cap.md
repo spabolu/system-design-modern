@@ -86,7 +86,7 @@ Azure Cosmos DB documents its five consistency levels against the PACELC trade-o
 
 | Cosmos DB level | Guarantee | Generic model | Cost and latency notes |
 | --- | --- | --- | --- |
-| Strong | Linearizable reads | Linearizable | Reads cost about 2× RU. Multi-region writes take about $2 \times \text{round trip} + 10\ \text{ms}$ at P99, using the round trip between the two farthest regions. Not available with multiple write regions. |
+| Strong | Linearizable reads | Linearizable | Reads cost about 2× RU. In an account with more than one region, writes take about $2 \times \text{round trip} + 10\ \text{ms}$ at P99, using the round trip between the two farthest regions. Not available with multiple write regions. |
 | Bounded staleness | Reads lag by at most K versions or T time | Bounded staleness | Reads cost about 2× RU. Minimum K and T are 10 writes or 5 seconds in one region, 100,000 writes or 300 seconds across regions. |
 | Session | Read-your-writes and write-follows-reads within a session token | Session | The default level for new accounts. Reads cost 1× RU. |
 | Consistent prefix | Writes in one transactional batch become visible together and in order; single-document writes behave as eventual | Consistent prefix, for transactional batches | Reads cost 1× RU. |
