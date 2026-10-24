@@ -17,7 +17,7 @@ export function parseCurriculum(source) {
     throw new Error('CONTRIBUTING.md must contain a Curriculum section');
   }
 
-  const levels = section.split('\n')
+  const levels = section.split(/\r?\n/)
     .filter((line) => /^\|\s*\d+\./.test(line))
     .map((line) => {
       const [, label, folderCell, pagesCell] = line.split('|').map((cell) => cell.trim());
@@ -48,7 +48,7 @@ export function sectionHeadings(source) {
 export function markdownSections(source, document = parseMarkdown(source)) {
   const sections = [];
   const ancestors = [];
-  const lines = source.split('\n');
+  const lines = source.split(/\r?\n/);
   const closeSection = (end) => {
     const section = ancestors.pop();
     section.body = lines.slice(section.line, end);

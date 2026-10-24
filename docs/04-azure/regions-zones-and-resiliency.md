@@ -94,7 +94,7 @@ The [regions list](https://learn.microsoft.com/azure/reliability/regions-list) s
 
 **Gotcha: creation-time settings.** Several zone settings cannot be added later. A Cosmos DB region's zone support is chosen when you add it, an App Service plan on a scale unit without zone support must be redeployed to a new plan, and a scale set's orchestration mode is fixed at creation. Put zone settings in your infrastructure as code from the first deployment.
 
-**Gotcha: Service Bus Geo-DR loses messages.** Geo-Disaster Recovery replicates only entities and configuration. Messages in the primary at failover time are not in the secondary. Use Geo-Replication when message loss is not acceptable.
+**Gotcha: Service Bus Geo-DR loses messages.** Geo-Disaster Recovery replicates only entities and configuration. Messages in the primary at failover time are not in the secondary. When message loss is not acceptable, use Geo-Replication in synchronous mode. It acknowledges a send only after both regions commit it, which adds cross-region latency to every send and throttles the primary when the secondary falls behind. Asynchronous mode can lose recent messages on a forced promotion.
 
 ## Interview tips
 
@@ -109,4 +109,5 @@ The [regions list](https://learn.microsoft.com/azure/reliability/regions-list) s
 - [Azure region pairs and nonpaired regions](https://learn.microsoft.com/azure/reliability/regions-paired)
 - [Multi-region solutions in nonpaired regions](https://learn.microsoft.com/azure/reliability/regions-multi-region-nonpaired)
 - [SQL Database business continuity overview](https://learn.microsoft.com/azure/azure-sql/database/business-continuity-high-availability-disaster-recover-hadr-overview)
+- [Service Bus Geo-Replication](https://learn.microsoft.com/azure/service-bus-messaging/service-bus-geo-replication)
 - [Availability and reliability](../01-fundamentals/availability-and-reliability.md) and [Resilience patterns](../03-patterns/resilience-patterns.md)
