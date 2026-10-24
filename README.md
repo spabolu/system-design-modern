@@ -60,16 +60,22 @@ not broken. It exits with an error for missing pages or connection failures.
 ## Deploy
 
 The site is an Azure Static Web App, `swa-system-design-modern` on the Free
-plan in the `rg-docusaurus` resource group. The Azure CLI fetches its
-deployment token, and the Static Web Apps CLI uploads the build:
+plan in the `rg-docusaurus` resource group. Every push to `main` deploys it.
+The Check workflow tests and builds the site, and its `deploy` job uploads
+that build with the `Azure/static-web-apps-deploy` action.
+
+The action reads the app's deployment token from the
+`AZURE_STATIC_WEB_APPS_API_TOKEN` repository secret. To set or rotate it:
 
 ```bash
-npm run check
-token=$(az staticwebapp secrets list -n swa-system-design-modern \
-  -g rg-docusaurus --query properties.apiKey -o tsv)
-npx @azure/static-web-apps-cli deploy ./build --env production \
-  --deployment-token "$token"
+az staticwebapp secrets list -n swa-system-design-modern -g rg-docusaurus \
+  --query properties.apiKey -o tsv |
+  gh secret set AZURE_STATIC_WEB_APPS_API_TOKEN
 ```
+
+The deploy runs on a GitHub Linux runner because the Static Web Apps upload
+client ships only for x64, so the Static Web Apps CLI cannot deploy from an
+Apple silicon Mac without Rosetta.
 
 `static/staticwebapp.config.json` serves the site's own 404 page for unknown
 paths.
