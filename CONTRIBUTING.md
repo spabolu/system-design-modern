@@ -17,7 +17,7 @@ The sidebar is generated from the `docs/` folders, so the folder and file names 
 | 5. Advanced | `docs/05-advanced/` | `consensus-raft-paxos`, `distributed-transactions`, `time-clocks-and-ordering`, `crdts-and-local-first`, `stream-processing`, `multi-region-active-active`, `cell-based-architecture`, `ai-systems-rag-and-agents`, `llm-serving-and-inference` |
 | 6. Case studies | `docs/06-case-studies/` | `url-shortener`, `rate-limiter`, `news-feed`, `chat-messaging`, `ticket-booking`, `ride-sharing`, `video-streaming`, `file-sync`, `web-crawler`, `top-k-leaderboard`, `ad-click-aggregator`, `ai-chat-assistant` |
 
-A page may only link to pages at its own level or below, except case studies and `04-azure`, which may link anywhere. This keeps the path from basics to advanced readable in order.
+A page may only link to pages at its own level or below, with two exceptions. Every page may link to `04-azure`, because each `## On Azure` section points there for the service decision. Case studies and `04-azure` pages may link anywhere. This keeps the path from basics to advanced readable in order.
 
 ## Page templates
 
