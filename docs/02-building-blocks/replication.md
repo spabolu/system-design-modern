@@ -63,7 +63,7 @@ Each region has its own leader that accepts local writes and replicates them to 
 
 ### Leaderless replication
 
-Any replica accepts writes. The client (or a coordinator) sends each write to N replicas and waits for W acknowledgments, and reads from R replicas and takes the newest version. If W + R > N, every read overlaps at least one replica that has the latest write. Replicas that missed writes catch up through read repair and background anti-entropy. Apache Cassandra works this way.
+Any replica accepts writes. The client (or a coordinator) sends each write to $N$ replicas and waits for $W$ acknowledgments, and reads from $R$ replicas and takes the newest version. If $W + R > N$, every read overlaps at least one replica that has the latest write. Replicas that missed writes catch up through read repair and background anti-entropy. Apache Cassandra works this way.
 
 ## Trade-offs
 
@@ -72,7 +72,7 @@ Any replica accepts writes. The client (or a coordinator) sends each write to N 
 | Single-leader, sync standby | Higher (one extra round trip) | Lost while failing over | None | Transactional databases |
 | Single-leader, async replicas | Low | Lost while failing over | None, but stale reads and possible loss on failover | Read scaling, cross-region DR |
 | Multi-leader | Low and local | High | Must resolve | Multi-region active-active |
-| Leaderless quorum | Tunable by W | High | Must resolve (versions) | Write-heavy, always-on stores |
+| Leaderless quorum | Tunable by $W$ | High | Must resolve (versions) | Write-heavy, always-on stores |
 
 - **RPO versus latency.** Zero data loss across regions means a synchronous cross-region round trip on every write. Most designs accept a small RPO across regions and zero within a region.
 - **Read replicas don't scale writes.** Every replica applies every write. When writes are the bottleneck, you need [partitioning](./sharding-and-partitioning.md).

@@ -39,12 +39,12 @@ Windows group events by time:
 | --- | --- | --- |
 | Tumbling | Fixed size, no overlap, every event in exactly one window | Clicks per ad per minute |
 | Hopping | Fixed size, advances by a smaller hop, so windows overlap | Five-minute average, updated every minute |
-| Sliding | Emits whenever an event enters or leaves the window | Alert when more than N failures in any 10 minutes |
+| Sliding | Emits whenever an event enters or leaves the window | Alert when more than $N$ failures in any 10 minutes |
 | Session | Grows while events keep arriving, closes after a gap of inactivity | Actions per user visit |
 
 ### Watermarks and late events
 
-A processor cannot know whether an event from 12:00:59 is still in flight. A **watermark** at time *W* asserts that events older than *W* are no longer expected, so windows ending at or before *W* can emit. A common heuristic sets the watermark to the largest event time seen minus an out-of-order tolerance.
+A processor cannot know whether an event from 12:00:59 is still in flight. A **watermark** at time $W$ asserts that events older than $W$ are no longer expected, so windows ending at or before $W$ can emit. A common heuristic sets the watermark to the largest event time seen minus an out-of-order tolerance.
 
 A larger tolerance captures more stragglers and delays every result by that much. A smaller one gives fresh results and more late events. For events behind the watermark, the choices are:
 

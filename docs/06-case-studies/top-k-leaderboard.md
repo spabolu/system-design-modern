@@ -6,15 +6,15 @@ sidebar_position: 10
 
 ## Understanding the problem
 
-**What is a top-K videos service?** It shows the K most-viewed videos for a window of time, such as the last hour or all time, on a platform where every play counts as a view. Viewers browse it, creators watch it, and it has to agree with the view counts shown elsewhere in the product.
+**What is a top-K videos service?** It shows the $K$ most-viewed videos for a window of time, such as the last hour or all time, on a platform where every play counts as a view. Viewers browse it, creators watch it, and it has to agree with the view counts shown elsewhere in the product.
 
 Two things make it hard. Views arrive at hundreds of thousands a second and must be counted exactly, so no database can take one write per view. And a ranking compares the counts of billions of videos, while a read has to come back in tens of milliseconds.
 
 ## Functional requirements
 
 1. The player backend should be able to report every view of every video as it happens.
-2. Clients should be able to get the all-time top K most-viewed videos, with K up to 1,000.
-3. Clients should be able to get the top K for the last full hour, day, or month.
+2. Clients should be able to get the all-time top $K$ most-viewed videos, with $K$ up to 1,000.
+3. Clients should be able to get the top $K$ for the last full hour, day, or month.
    - Windows are tumbling and aligned to the clock. "Last hour" at 10:06 means 09:00 to 10:00.
 
 **Below the line (out of scope)**
@@ -23,7 +23,7 @@ Two things make it hard. Views arrive at hundreds of thousands a second and must
 - **Sliding windows.** "The last 60 minutes, updated every minute" means recomputing every list every minute instead of once when a window closes.
 - **Per-category or per-country lists.** They multiply the number of lists, not the design.
 - **Bot and fraud filtering.** An upstream system decides which plays count. This one counts what it's given.
-- **K above 1,000.** Nobody reads past the first page, and a fixed K keeps each stored list small.
+- **$K$ above 1,000.** Nobody reads past the first page, and a fixed $K$ keeps each stored list small.
 
 These three cover what a viewer sees, a list per window plus the stream that feeds it. The items below the line either break the assumption that windows close, belong to an upstream system, or only multiply lists.
 
@@ -91,7 +91,7 @@ Start with the simplest pipeline that returns a correct list, then let the deep 
 
 1. The player backend publishes a view event to a stream partitioned by `videoId`.
 2. A counter consumes the stream and adds each view to the video's counts.
-3. A client asks for a window, and the API returns the top K videos by count for it.
+3. A client asks for a window, and the API returns the top $K$ videos by count for it.
 
 ### 1) The player backend can report every view
 
@@ -192,7 +192,7 @@ flowchart LR
 **Challenges.** Counts reach the store up to a minute late, plus however long the job waits for stragglers. That is why requirement 2 gives the all-time list 3 minutes, and deep dive 3 adds up the whole path. Exactly-once processing inside the job doesn't make delivery to the store exactly once, which deep dive 4 handles. You also run a stateful stream engine, or rent one.
 
 :::info
-If the interviewer relaxes exactness, a count-min sketch plus a heap per window finds the top K in fixed memory. Its counts are overestimates, so videos near the cutoff can come out in the wrong order.
+If the interviewer relaxes exactness, a count-min sketch plus a heap per window finds the top $K$ in fixed memory. Its counts are overestimates, so videos near the cutoff can come out in the wrong order.
 :::
 
 In a 45-minute interview I'd name the hot-row and double-count problems with the first rung, then go straight to the stream job, because "pre-aggregate per minute, exactly once" is the idea this question tests.
@@ -209,7 +209,7 @@ This serves requirement 3. The rollups hold exact counts, but ranking them is a 
 
 #### Good solution: One Redis sorted set per window
 
-**Approach.** Keep a sorted set for each window bucket, such as `top:hour:2026-10-14T09`. For each minute row, the job runs `ZINCRBY` on the video's member in each of the four sets. A read is `ZREVRANGE key 0 99 WITHSCORES`, which costs O(log N + K) and returns in about a millisecond.
+**Approach.** Keep a sorted set for each window bucket, such as `top:hour:2026-10-14T09`. For each minute row, the job runs `ZINCRBY` on the video's member in each of the four sets. A read is `ZREVRANGE key 0 99 WITHSCORES`, which costs $O(\log N + K)$ and returns in about a millisecond.
 
 ```mermaid
 flowchart LR

@@ -264,7 +264,7 @@ The design works for a few users and small files. Now harden it against each non
 
 ### 1) How does an edit to a 2 GB file send only what changed?
 
-This serves requirement 2. A 2 GB file in 8 MiB chunks is 256 chunks. How many of them an edit touches decides how long the next sync takes.
+This serves requirement 2. A 2 GB file in 8 MiB chunks is about 240 chunks. How many of them an edit touches decides how long the next sync takes.
 
 #### Bad solution: Upload the whole file on every save
 
@@ -276,7 +276,7 @@ This serves requirement 2. A 2 GB file in 8 MiB chunks is 256 chunks. How many o
 
 **Approach.** The high-level design. Cut the file every 8 MiB and upload only chunks whose hash is new. An edit that overwrites bytes in place or appends to the end changes one or two chunks.
 
-**Challenges.** An insert shifts every boundary after it. Insert one byte at the start of a 2 GB file and all 256 chunks change, so the device re-uploads the whole file.
+**Challenges.** An insert shifts every boundary after it. Insert one byte at the start of a 2 GB file and all of its chunks change, so the device re-uploads the whole file.
 
 #### Great solution: Content-defined chunking
 
@@ -285,7 +285,7 @@ This serves requirement 2. A 2 GB file in 8 MiB chunks is 256 chunks. How many o
 ```mermaid
 flowchart TB
   subgraph Fixed["Fixed 8 MiB chunks after inserting 1 byte at the start"]
-    F1["chunk 1 changed"] --> F2["chunk 2 changed"] --> F3["all 256 changed"]
+    F1["chunk 1 changed"] --> F2["chunk 2 changed"] --> F3["all chunks changed"]
   end
   subgraph CDC["Content-defined chunks after the same insert"]
     C1["chunk 1 changed"] --> C2["chunk 2 unchanged"] --> C3["rest unchanged"]

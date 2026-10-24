@@ -14,13 +14,10 @@ export function extractExternalLinks(source) {
       }
     }
     candidate = candidate.replace(/[.,;:!?]+$/, '').replaceAll('&amp;', '&');
-    try {
-      const url = new URL(candidate);
-      url.hash = '';
-      links.add(url.href);
-    } catch {
-      // Text that resembles a URL can be incomplete in a code example.
-    }
+    if (!URL.canParse(candidate)) continue;
+    const url = new URL(candidate);
+    url.hash = '';
+    links.add(url.href);
   }
   return [...links];
 }

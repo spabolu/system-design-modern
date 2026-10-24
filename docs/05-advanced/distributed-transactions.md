@@ -44,7 +44,7 @@ The weak point is the gap between voting yes and hearing the decision. A partici
 
 ### Sagas
 
-A saga splits the operation into local transactions T1 to Tn. Each step commits on its own. If step k fails, the saga runs compensating actions for steps k-1 down to 1. A compensation is a new business action, not a rollback. Refunding a charge is not the same as never charging, and the customer may see both on a statement.
+A saga splits the operation into local transactions $T_1$ to $T_n$. Each step commits on its own. If step $k$ fails, the saga runs compensating actions for steps $k-1$ down to 1. A compensation is a new business action, not a rollback. Refunding a charge is not the same as never charging, and the customer may see both on a statement.
 
 ```mermaid
 flowchart LR
@@ -64,9 +64,9 @@ Two coordination styles exist. In orchestration, one durable workflow calls each
 
 ### The missing I in ACID
 
-Sagas give up isolation. Between T1 and the compensation, other requests see stock that is reserved but may be released. Design for it.
+Sagas give up isolation. Between $T_1$ and the compensation, other requests see stock that is reserved but may be released. Design for it.
 
-- **Semantic lock.** Write a status such as `PENDING` in T1, and have readers treat pending rows differently, for example by excluding them from "available" counts.
+- **Semantic lock.** Write a status such as `PENDING` in $T_1$, and have readers treat pending rows differently, for example by excluding them from "available" counts.
 - **Commutative updates.** Use increments and decrements rather than read-modify-write, so interleaved sagas cannot lose each other's changes.
 - **Reread before acting.** A retryable step checks that its input still holds, and fails into a compensation if it does not.
 

@@ -16,7 +16,7 @@ sidebar_position: 4
 
 An API is the hardest part of a system to change. You can rewrite a service behind it in a quarter, but a mobile app version that shipped two years ago still calls the old contract, and you can't force every user to upgrade. Mistakes in naming, pagination, or error semantics live for as long as the oldest client does.
 
-Two failure modes come from API design specifically. The first is unsafe retries. A client sends "charge $40", the network times out, and the client can't tell whether the charge happened. If it retries and the API can't recognize the retry, the customer pays twice. The second is unbounded responses. An endpoint that returns "all orders" works in testing with 50 rows and times out in production with 5 million.
+Two failure modes come from API design specifically. The first is unsafe retries. A client sends "charge \$40", the network times out, and the client can't tell whether the charge happened. If it retries and the API can't recognize the retry, the customer pays twice. The second is unbounded responses. An endpoint that returns "all orders" works in testing with 50 rows and times out in production with 5 million.
 
 ## How it works
 

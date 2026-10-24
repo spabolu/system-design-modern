@@ -303,6 +303,156 @@ test('concept pages do not use case-study subsection rules', () => {
   assert.deepEqual(check(source), []);
 });
 
+for (const [label, formula] of [
+  ['inline', '$\\unknowncommand{x}$'],
+  ['display', '$$\n\\unknowncommand{x}\n$$'],
+]) {
+  test(`invalid ${label} math reports its opening line and KaTeX message`, async () => {
+    const fixture = project();
+    const path = 'docs/intro.md';
+    fixture.files.set(path, `${frontMatter}\n${formula}\n`);
+    const diagnostics = await checkProject(fixture);
+    assert.equal(diagnostics.length, 1, JSON.stringify(diagnostics));
+    assert.equal(diagnostics[0].path, path);
+    assert.equal(diagnostics[0].line, 7);
+    assert.equal(diagnostics[0].severity, 'error');
+    assert.match(diagnostics[0].message, /Invalid math:.*Undefined control sequence.*\\unknowncommand/);
+  });
+}
+
+test('valid inline and display math render with their respective modes', async () => {
+  const fixture = project();
+  fixture.files.set('docs/intro.md', `${frontMatter}
+$2^{64}$ and $50\\ \\text{events/s} \\times 2 \\approx 100$.
+
+$$
+\\begin{aligned}
+\\text{peak} &= \\frac{100}{2} \\\\
+&= 50
+\\end{aligned}
+\\tag{1}
+$$
+`);
+  assert.deepEqual(await checkProject(fixture), []);
+});
+
+test('inline math rejects display-only commands', async () => {
+  const fixture = project();
+  fixture.files.set('docs/intro.md', `${frontMatter}\n$x=1\\tag{1}$\n`);
+  const diagnostics = await checkProject(fixture);
+  assert.equal(diagnostics.length, 1, JSON.stringify(diagnostics));
+  hasMessage(diagnostics, /Invalid math:.*\\tag works only in display equations/);
+});
+
+test('the real idempotency sentence requires escaped currency dollars', async () => {
+  const fixture = project();
+  const path = 'docs/intro.md';
+  const sentence = '"Set balance to $50" is idempotent. "Add $50" is not.';
+  fixture.files.set(path, `${frontMatter}\n${sentence}\n`);
+  assert.deepEqual(await checkProject(fixture), [{
+    path,
+    line: 7,
+    severity: 'error',
+    message: 'currency dollar parsed as math; escape it as \\$',
+  }]);
+  fixture.files.set(path, `${frontMatter}\n${sentence.replaceAll('$', '\\$')}\n`);
+  assert.deepEqual(await checkProject(fixture), []);
+});
+
+for (const value of ['50 dollars to ', '50" to ', '50 to ']) {
+  test(`currency detection rejects prose in math ${JSON.stringify(value)}`, async () => {
+    const fixture = project();
+    fixture.files.set('docs/intro.md', `${frontMatter}\n$${value}$\n`);
+    hasMessage(await checkProject(fixture), /currency dollar parsed as math; escape it as \\\$/);
+  });
+}
+
+test('currency detection permits numbers, text groups, and command names in real math', async () => {
+  const fixture = project();
+  fixture.files.set('docs/intro.md', `${frontMatter}
+$50$, $2xy$, $2xyz$, $50\\ \\text{events per second}$, $50\\ \\mathrm{requests/s}$, and $2\\times 3\\approx 6$.
+`);
+  assert.deepEqual(await checkProject(fixture), []);
+});
+
+for (const row of [
+  '| $P(A|B)$ | 1 |',
+  '| **$P(A|B)$** | 1 |',
+  '| $$P(A|B)$$ | 1 |',
+  '| $\\lvert A|B\\rvert$ | 1 |',
+]) {
+  test(`table math rejects a bare pipe before GFM can split it ${row}`, async () => {
+    const fixture = project();
+    const path = 'docs/intro.md';
+    fixture.files.set(path, `${frontMatter}\n| Expression | Value |\n| --- | --- |\n${row}\n`);
+    assert.deepEqual(await checkProject(fixture), [{
+      path,
+      line: 9,
+      severity: 'error',
+      message: 'Math in a table must use \\vert or \\mid instead of a bare |.',
+    }]);
+  });
+}
+
+test('table math accepts named pipes and ignores pipes in code and normal prose', async () => {
+  const fixture = project();
+  fixture.files.set('docs/intro.md', `${frontMatter}
+$P(A|B)$ outside a table is valid.
+
+| Expression | Value |
+| --- | --- |
+| $P(A\\mid B)$ | $\\vert x\\vert$ |
+| $\\lVert x\\rVert$ | $a\\|b$ |
+| \`$a|b$\` | Plain prose |
+| Words | Other words |
+
+\`\`\`markdown
+| Expression | Value |
+| --- | --- |
+| $P(A|B)$ | 1 |
+\`\`\`
+`);
+  assert.deepEqual(await checkProject(fixture), []);
+});
+
+test('math-looking inline and fenced code and escaped currency are not validated', async () => {
+  const fixture = project();
+  fixture.files.set('docs/intro.md', `${frontMatter}
+\`$\\unknowncommand{x}$\`, \\$50, and \\$80 stay literal.
+
+\`\`\`text
+$\\unknowncommand{x}$
+$$
+\\unknowncommand{x}
+$$
+\`\`\`
+`);
+  assert.deepEqual(await checkProject(fixture), []);
+});
+
+test('blog math uses the same validation without doc frontmatter requirements', async () => {
+  const fixture = project();
+  fixture.files.set('blog/note.md', '$\\unknowncommand{x}$\n');
+  const diagnostics = await checkProject(fixture);
+  assert.equal(diagnostics.length, 1, JSON.stringify(diagnostics));
+  assert.equal(diagnostics[0].path, 'blog/note.md');
+  assert.equal(diagnostics[0].line, 1);
+  assert.match(diagnostics[0].message, /Invalid math:.*Undefined control sequence/);
+});
+
+test('unmatched dollars do not hide headings, section bodies, or curriculum links', async () => {
+  const fixture = project();
+  const path = 'docs/01-fundamentals/first.md';
+  const source = page().replace('Explanation of TL;DR.', 'Costs start at $50.')
+    .replace('Explanation of Further reading.',
+      'Costs end at $80.\n\n[Advanced](../05-advanced/advanced.md)');
+  fixture.files.set(path, source);
+  const diagnostics = await checkProject(fixture);
+  assert.equal(diagnostics.length, 1, JSON.stringify(diagnostics));
+  hasMessage(diagnostics, /higher curriculum level.*5\. Advanced/);
+});
+
+
 
 test('CRLF pages and templates pass like LF ones', async () => {
   assert.deepEqual(check(page().replaceAll('\n', '\r\n')), []);

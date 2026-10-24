@@ -40,7 +40,7 @@ I trimmed to quote, request, offer, and pickup because that loop is the product.
 - **Agreement between cities.** A rider in Seattle never matches a driver in Paris, so metros don't need to share any state. That lets each geography run on its own.
 - **Perfect ETAs.** Drive times come from a routing engine with live traffic. Tuning them further with models is a separate system.
 
-The location write rate shapes this design more than anything else. Two million online drivers sending one ping every 5 seconds is 400,000 pings a second. About half of them, 1 million, are on a trip, and their pings feed the rider's map and the trip record, not matching, so the index of available drivers takes about 200,000 writes a second. At about 100 bytes a driver, that index is 200 MB. Rides are a modest workload by comparison. Twenty million a day is about 230 a second, or about 2,300 at a 10x peak, with roughly two offers per match, so about 4,600 offers a second. At 2 KB a ride, that is 40 GB of ride records a day. That decided two things. The location index is tiny and write-heavy, so it lives in memory, where durability buys nothing for data that is stale in 5 seconds. And the stadium is about 170 requests a second, which the system barely notices, so it is a problem of supply in one place rather than throughput. See [back-of-the-envelope estimation](../01-fundamentals/back-of-the-envelope.md).
+The location write rate shapes this design more than anything else. Two million online drivers sending one ping every 5 seconds is 400,000 pings a second. About half of them, 1 million, are on a trip, and their pings feed the rider's map and the trip record, not matching, so the index of available drivers takes about 200,000 writes a second. At about 100 bytes a driver, that index is 100 MB. Rides are a modest workload by comparison. Twenty million a day is about 230 a second, or about 2,300 at a 10x peak, with roughly two offers per match, so about 4,600 offers a second. At 2 KB a ride, that is 40 GB of ride records a day. That decided two things. The location index is tiny and write-heavy, so it lives in memory, where durability buys nothing for data that is stale in 5 seconds. And the stadium is about 170 requests a second, which the system barely notices, so it is a problem of supply in one place rather than throughput. See [back-of-the-envelope estimation](../01-fundamentals/back-of-the-envelope.md).
 
 :::tip
 Give the location write rate before you draw anything. It rules out a durable database for live positions in one sentence, and the interviewer will hold you to it.
@@ -270,7 +270,7 @@ This serves requirements 4 and 5. The geo index in the high-level design is a bo
 
 **Approach.** Store each position as a point and index it with a spatial index, an R-tree or GiST in PostGIS. A nearest-neighbor query within a radius now uses the index directly and returns in milliseconds.
 
-**Challenges.** The queries are fixed, but the writes aren't. Every ping is still a logged, durable update that also rebalances the spatial index, and you'd scale a database cluster to hold 200 MB. Durability is the expensive part, and here it buys nothing.
+**Challenges.** The queries are fixed, but the writes aren't. Every ping is still a logged, durable update that also rebalances the spatial index, and you'd scale a database cluster to hold 100 MB. Durability is the expensive part, and here it buys nothing.
 
 #### Great solution: In-memory geo sets, one per city cell
 
@@ -440,7 +440,7 @@ flowchart LR
 
 | Component | Azure service | Tier or setting, and why |
 | --- | --- | --- |
-| Geo index and offer locks | Azure Managed Redis | Compute Optimized (2:1 memory to vCPU). 200 MB taking 200,000 writes a second is CPU-bound, not memory-bound. OSS clustering for the highest throughput, with the metro name as the hash tag so a cell's set stays on one shard. High availability on. |
+| Geo index and offer locks | Azure Managed Redis | Compute Optimized (2:1 memory to vCPU). 100 MB taking 200,000 writes a second is CPU-bound, not memory-bound. OSS clustering for the highest throughput, with the metro name as the hash tag so a cell's set stays on one shard. High availability on. |
 | Fare and ETA | Azure Maps | Route Directions for one pickup and destination. Route Matrix to rank many candidate drivers by drive time. |
 | Ride request queue | Azure Service Bus | Standard or Premium with sessions. The session ID is the cell, so each cell is read in order. |
 | Matching workflow | Durable Task Scheduler with the Durable Task SDK on Container Apps | Durable timers for the 10-second offer and the one-minute deadline, and an external event for "accepted". |

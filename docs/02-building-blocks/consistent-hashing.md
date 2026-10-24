@@ -7,7 +7,7 @@ sidebar_position: 9
 ## TL;DR
 
 - Consistent hashing maps keys and nodes onto the same circular hash space (the ring). Each key belongs to the first node clockwise from its position.
-- Adding or removing a node only moves the keys in one arc of the ring, about 1/N of the data. With `hash(key) mod N`, changing N moves almost every key.
+- Adding or removing a node only moves the keys in one arc of the ring, about $1/N$ of the data. With $\operatorname{hash}(\text{key}) \bmod N$, changing $N$ moves almost every key.
 - With one position per node, arcs are uneven and a failed node dumps its whole load on one neighbor. Virtual nodes (many positions per physical node) fix both.
 - Store replicas on the next distinct nodes clockwise to get replication for free from the same structure.
 - Alternatives: fixed hash slots (Redis Cluster), rendezvous hashing, and jump hashing solve the same problem with different trade-offs.
@@ -15,7 +15,7 @@ sidebar_position: 9
 
 ## Why it matters
 
-Any time you spread keys over a changing set of servers (cache nodes, database shards, chat servers holding WebSocket connections), you need a key-to-server function that survives membership changes. The obvious one, `hash(key) mod N`, fails badly. Going from 10 to 11 servers changes the result for about 10 of every 11 keys. For a cache, that's a sudden 90% miss rate and a [stampede](./caching.md) on the database. For a sharded store, it's a migration of almost all data.
+Any time you spread keys over a changing set of servers (cache nodes, database shards, chat servers holding WebSocket connections), you need a key-to-server function that survives membership changes. The obvious one, $\operatorname{hash}(\text{key}) \bmod N$, fails badly. Going from 10 to 11 servers changes the result for about 10 of every 11 keys. For a cache, that's a sudden 90% miss rate and a [stampede](./caching.md) on the database. For a sharded store, it's a migration of almost all data.
 
 Learn's sharding pattern says it directly: with plain hashing, adding or removing a shard reassigns most keys and triggers large-scale data migration, and consistent hashing arranges the hash space so only a small fraction of keys move. It's a standard interview topic because it connects [sharding](./sharding-and-partitioning.md), caching, and [load balancing](./load-balancing.md) with one idea.
 
@@ -23,7 +23,7 @@ Learn's sharding pattern says it directly: with plain hashing, adding or removin
 
 ### The ring
 
-Pick a hash function with a large output space, for example 32 bits, and bend the range into a circle so the largest value wraps to zero. Hash each node's ID to a position on the ring. To place a key, hash it and walk clockwise to the first node. In code, the ring is a sorted array of node positions, and a lookup is a binary search: O(log V) for V positions.
+Pick a hash function with a large output space, for example 32 bits, and bend the range into a circle so the largest value wraps to zero. Hash each node's ID to a position on the ring. To place a key, hash it and walk clockwise to the first node. In code, the ring is a sorted array of node positions, and a lookup is a binary search: $O(\log V)$ for $V$ positions.
 
 ```mermaid
 flowchart LR
@@ -40,11 +40,11 @@ flowchart LR
     K3["feed:9 hashes to 330"] -. "wraps past 359" .-> A1
 ```
 
-Here three physical servers (A, B, C) each own two virtual nodes. Server C owns the arcs (60, 120] and (240, 300].
+Here three physical servers (A, B, C) each own two virtual nodes. Server C owns the arcs $(60, 120]$ and $(240, 300]$.
 
 ### Adding and removing nodes
 
-When a new node joins at position 90, it takes over the keys between the previous node (60) and itself. Every other key stays where it was. When a node leaves, its keys move to the next node clockwise. Either way, about 1/N of keys move, and only to or from the changed node.
+When a new node joins at position 90, it takes over the keys between the previous node (60) and itself. Every other key stays where it was. When a node leaves, its keys move to the next node clockwise. Either way, about $1/N$ of keys move, and only to or from the changed node.
 
 ### Virtual nodes
 
@@ -60,7 +60,7 @@ The cost is a bigger ring to store and search, which is cheap even with thousand
 
 ### Replication on the ring
 
-To keep R copies, store each key on the first R distinct physical servers clockwise from its position (skip virtual nodes that belong to a server already chosen). This list is the key's preference list. Dynamo-style databases such as Apache Cassandra combine this placement with quorum reads and writes; see [Replication](./replication.md).
+To keep $R$ copies, store each key on the first $R$ distinct physical servers clockwise from its position (skip virtual nodes that belong to a server already chosen). This list is the key's preference list. Dynamo-style databases such as Apache Cassandra combine this placement with quorum reads and writes; see [Replication](./replication.md).
 
 ### Hot keys
 
@@ -69,18 +69,18 @@ Consistent hashing balances keys, not traffic. One viral key still lands on one 
 ### Alternatives
 
 - **Fixed hash slots.** Hash keys into a fixed number of slots (Redis Cluster uses 16,384), then assign slots to nodes. Moving a slot is an explicit operation, and the slot map is small enough for every client to hold.
-- **Rendezvous (highest random weight) hashing.** For each key, score every node with `hash(key, node)` and pick the highest. Moves the same 1/N of keys and needs no virtual nodes, but each lookup costs O(N).
-- **Jump consistent hash.** A few lines of arithmetic map a key to one of N buckets with minimal movement and no memory. Buckets must be numbered 0 to N-1, so you can add or remove only at the end.
+- **Rendezvous (highest random weight) hashing.** For each key, score every node with `hash(key, node)` and pick the highest. Moves the same $1/N$ of keys and needs no virtual nodes, but each lookup costs $O(N)$.
+- **Jump consistent hash.** A few lines of arithmetic map a key to one of $N$ buckets with minimal movement and no memory. Buckets must be numbered $0$ to $N-1$, so you can add or remove only at the end.
 
 ## Trade-offs
 
-| Approach | Keys moved when N changes | Balance | Lookup cost | Notes |
+| Approach | Keys moved when $N$ changes | Balance | Lookup cost | Notes |
 | --- | --- | --- | --- | --- |
-| `hash mod N` | Almost all | Even | O(1) | Fine only if N never changes |
-| Ring, one position per node | About 1/N | Uneven | O(log N) | Failure overloads one neighbor |
-| Ring with virtual nodes | About 1/N | Close to even | O(log V) | The common choice |
-| Fixed hash slots | Only the slots you move | Even if slots are balanced | O(1) | Needs a slot map and a rebalance step |
-| Rendezvous hashing | About 1/N | Even | O(N) | Simple, good for small N |
+| $\operatorname{hash} \bmod N$ | Almost all | Even | $O(1)$ | Fine only if $N$ never changes |
+| Ring, one position per node | About $1/N$ | Uneven | $O(\log N)$ | Failure overloads one neighbor |
+| Ring with virtual nodes | About $1/N$ | Close to even | $O(\log V)$ | The common choice |
+| Fixed hash slots | Only the slots you move | Even if slots are balanced | $O(1)$ | Needs a slot map and a rebalance step |
+| Rendezvous hashing | About $1/N$ | Even | $O(N)$ | Simple, good for small $N$ |
 
 - **Membership must agree.** Every client has to see the same ring. Distribute it through a coordination service or gossip, and expect brief disagreement during changes.
 - **Moving keys still costs.** Consistent hashing limits how many keys move; it doesn't move them. A cache just takes misses, while a database has to stream data to the new node before it serves it.

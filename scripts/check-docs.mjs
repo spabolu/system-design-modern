@@ -2,8 +2,8 @@ import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {posix, resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {fromMarkdown} from 'mdast-util-from-markdown';
-import {parseCurriculum, markdownSections, sectionHeadings} from './curriculum.mjs';
+import katex from 'katex';
+import {parseCurriculum, parseMarkdown, markdownSections, sectionHeadings} from './curriculum.mjs';
 import {readTextFiles} from './files.mjs';
 import {parseMermaid} from './mermaid.mjs';
 
@@ -26,6 +26,38 @@ const bannedPattern = new RegExp(`\\b(?:${[...bannedTerms]
 const frontMatterPattern = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
 const lineAt = (source, offset) => source.slice(0, offset).split('\n').length;
 const error = (path, line, message) => ({path, line, severity: 'error', message});
+
+function checkKatex(node) {
+  try {
+    katex.renderToString(node.value, {throwOnError: true, displayMode: node.type === 'math'});
+  } catch (cause) {
+    return `Invalid math: ${cause.message}`;
+  }
+}
+
+function checkCurrency(node) {
+  const prose = node.value.replace(/\\[a-zA-Z]+(?:\{[^}]*\})?/g, '');
+  if (/^\d/.test(node.value) && (/\s$|"/.test(node.value) || /\s[a-zA-Z]{2,}/.test(prose))) {
+    return 'currency dollar parsed as math; escape it as \\$';
+  }
+}
+
+function checkTableMathPipes(node, source) {
+  const containsBarePipe = (child) =>
+    (child.type === 'inlineMath' && /(^|[^\\])(?:\\\\)*\|/.test(child.value)) ||
+    child.children?.some(containsBarePipe);
+  const row = source.slice(node.position.start.offset, node.position.end.offset);
+  // GFM splits cells at bare pipes before it can recognize the surrounding math.
+  if (containsBarePipe(parseMarkdown(row, {tables: false}))) {
+    return 'Math in a table must use \\vert or \\mid instead of a bare |.';
+  }
+}
+
+const mathNodeRules = {
+  inlineMath: [checkKatex, checkCurrency],
+  math: [checkKatex],
+  tableRow: [checkTableMathPipes],
+};
 
 export function checkBannedTerms(path, source) {
   return [...source.matchAll(bannedPattern)].map((match) =>
@@ -53,7 +85,7 @@ function sectionContent(lines) {
     }
   }
   return {
-    mermaid: hasMermaid(fromMarkdown(lines.join('\n'))),
+    mermaid: hasMermaid(parseMarkdown(lines.join('\n'))),
     text: text.join('\n').replace(/<!--[\s\S]*?-->/g, '')
       .replace(/^ {0,3}#{1,6}\s.*$/gm, '').trim(),
   };
@@ -227,11 +259,15 @@ export async function checkProject({registrySource, files}, {strict = false} = {
     if (/^(docs|blog|src|templates)\//.test(path)) {
       diagnostics.push(...checkBannedTerms(path, source));
     }
-    if (!/^docs\/.*\.mdx?$/.test(path)) continue;
+    if (!/^(docs|blog)\/.*\.mdx?$/.test(path)) continue;
     const level = levels.find(({folder}) => path.startsWith(`${folder}/`));
     const links = [];
     const definitions = new Map();
     const visit = (node) => {
+      for (const rule of mathNodeRules[node.type] ?? []) {
+        const message = rule(node, source);
+        if (message) diagnostics.push(error(path, node.position.start.line, message));
+      }
       if (node.type === 'code' && node.lang === 'mermaid') {
         diagrams.push({path, line: node.position.start.line, source: node.value});
       }
@@ -239,8 +275,9 @@ export async function checkProject({registrySource, files}, {strict = false} = {
       if (node.type === 'definition') definitions.set(node.identifier, node.url);
       node.children?.forEach(visit);
     };
-    const document = fromMarkdown(source);
+    const document = parseMarkdown(source);
     visit(document);
+    if (!path.startsWith('docs/')) continue;
     if (level && level.number !== 6 && level.folder !== 'docs/04-azure') {
       for (const link of links) {
         const url = link.url ?? definitions.get(link.identifier);

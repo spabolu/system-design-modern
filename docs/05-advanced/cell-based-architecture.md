@@ -46,9 +46,9 @@ flowchart LR
 
 ### Blast radius
 
-With *N* equal cells, a failure confined to one cell reaches about 1/*N* of customers. Smaller cells mean a smaller blast radius and more copies to run.
+With $N$ equal cells, a failure confined to one cell reaches about $1/N$ of customers. Smaller cells mean a smaller blast radius and more copies to run.
 
-**Shuffle sharding** shrinks the blast radius further inside a shared pool. Give each tenant a random combination of *k* workers out of *n*. With 8 workers and 2 per tenant, there are 28 possible pairs. A poison tenant that crashes its two workers fully overlaps with only the tenants that drew the same pair, about 1 in 28. Every other tenant keeps at least one healthy worker.
+**Shuffle sharding** shrinks the blast radius further inside a shared pool. Give each tenant a random combination of $k$ workers out of $n$. With 8 workers and 2 per tenant, there are 28 possible pairs. A poison tenant that crashes its two workers fully overlaps with only the tenants that drew the same pair, about 1 in 28. Every other tenant keeps at least one healthy worker.
 
 ### Sizing and placement
 

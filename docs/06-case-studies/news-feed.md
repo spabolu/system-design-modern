@@ -39,7 +39,16 @@ I trimmed to post, follow, and read because those three already contain the whol
 - **Perfect order across authors.** Two posts written milliseconds apart by different authors may swap places. Nobody can tell.
 - **Full speed at any depth.** The fast path covers the newest 200 posts, about eight pages. A user who scrolls deeper can wait a little longer.
 
-The numbers that matter come from follower skew. Assume each active user posts every other day and opens the feed 10 times a day. That is 1 billion × 0.5 ÷ 86,400 seconds, about 5,800 posts a second, and about 116,000 feed loads a second, doubling to 230,000 at peak. Every follow edge has one follower and one followee, so the average number of follows equals the average number of followers, about 200. Copying each post into every follower's feed then costs 5,800 × 200, or 1.16 million feed writes a second. Spread across a cluster, that is affordable. A single post from a 100-million-follower account is 100 million writes on its own, and that is not. Those two numbers decided the design. Precompute feeds for ordinary accounts and handle the largest accounts another way (deep dive 2). See [back-of-the-envelope estimation](../01-fundamentals/back-of-the-envelope.md) for the method.
+The numbers that matter come from follower skew. Assume each active user posts every other day and opens the feed 10 times a day. Feed loads come to about 116,000 a second, doubling to 230,000 at peak. Every follow edge has one follower and one followee, so the average number of follows equals the average number of followers, about 200. Copying each post into every follower's feed then costs this many writes:
+
+$$
+\begin{aligned}
+\text{posts} &= 1\text{B} \times 0.5 \div 86{,}400\ \text{s} \approx 5{,}800/\text{s} \\
+\text{feed writes} &= 5{,}800 \times 200 = 1.16\text{M/s}
+\end{aligned}
+$$
+
+Spread across a cluster, that is affordable. A single post from a 100-million-follower account is 100 million writes on its own, and that is not. Those two numbers decided the design. Precompute feeds for ordinary accounts and handle the largest accounts another way (deep dive 2). See [back-of-the-envelope estimation](../01-fundamentals/back-of-the-envelope.md) for the method.
 
 :::tip
 Name both extremes before you draw anything. One user follows 5,000 accounts, and one account has 100 million followers. Interviewers wait to see whether you raise them unprompted.
@@ -198,7 +207,7 @@ flowchart LR
   FD -->|"25 point reads"| PDB
 ```
 
-**Challenges.** The list read is fast, but each page still makes 25 point reads. At peak that is 230,000 × 25, or 5.75 million post reads a second, which is now the largest load in the system. Writes multiply too, to 1.16 million list pushes a second on average and 100 million for one celebrity post (deep dive 2). A new follow also shows nothing until the followed account posts again, so backfill on follow by copying that account's newest 20 posts into the follower's list in the background.
+**Challenges.** The list read is fast, but each page still makes 25 point reads. At peak that is $230{,}000 \times 25 = 5.75$ million post reads a second, which is now the largest load in the system. Writes multiply too, to 1.16 million list pushes a second on average and 100 million for one celebrity post (deep dive 2). A new follow also shows nothing until the followed account posts again, so backfill on follow by copying that account's newest 20 posts into the follower's list in the background.
 
 #### Great solution: Precomputed lists plus a post cache read in one round trip
 
@@ -299,7 +308,7 @@ flowchart LR
 
 #### Great solution: Keep the hottest posts in each feed replica's memory
 
-**Approach.** Give every feed service replica a small in-process cache of the hottest posts and of the recent-posts lists for high-fanout accounts, with a 5-second TTL. A replica fetches a hot post at most once every 5 seconds, however many pages it serves. With 500 replicas, 50 million reads an hour become at most 500 × 720, or 360,000, cache reads an hour for that post. Keep replicated keys for the long tail of warm posts that aren't hot enough to earn a slot in every replica.
+**Approach.** Give every feed service replica a small in-process cache of the hottest posts and of the recent-posts lists for high-fanout accounts, with a 5-second TTL. A replica fetches a hot post at most once every 5 seconds, however many pages it serves. With 500 replicas, 50 million reads an hour become at most $500 \times 720 = 360{,}000$ cache reads an hour for that post. Keep replicated keys for the long tail of warm posts that aren't hot enough to earn a slot in every replica.
 
 ```mermaid
 flowchart LR
@@ -316,7 +325,7 @@ In a 45-minute interview I'd present the in-process cache with the 360,000 arith
 
 ### 4) How do we hold 3.2 TB of feeds without paying for all of it in RAM?
 
-This serves requirements 3 and 4. One billion active users × 200 entries × 16 bytes is 3.2 TB of raw feed data, before per-entry overhead and replicas. Most of it belongs to people who open the app once a week.
+This serves requirements 3 and 4. Raw feed data is $1\text{B active users} \times 200\ \text{entries} \times 16\ \text{bytes} = 3.2\ \text{TB}$, before per-entry overhead and replicas. Most of it belongs to people who open the app once a week.
 
 #### Bad solution: One database item per feed entry
 

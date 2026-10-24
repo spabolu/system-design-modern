@@ -32,7 +32,7 @@ Five techniques cover nearly every design. They differ in who can send, how long
 | WebSockets | Both ways | Upgraded TCP connection, full duplex | Milliseconds | Chat, multiplayer, collaborative editing, presence |
 | Webhooks | Server to server | One HTTP POST per event | Seconds | Telling another company's system that something happened |
 
-**Short polling** is stateless, cacheable, and works through every proxy. Its cost is `clients / interval` requests per second. Ten thousand clients polling every 5 seconds is 2,000 requests per second, which a small fleet handles. Start here when the requirement says "updates within a few seconds".
+**Short polling** is stateless, cacheable, and works through every proxy. Its cost is $\text{clients} / \text{interval}$ requests per second. Ten thousand clients polling every 5 seconds is 2,000 requests per second, which a small fleet handles. Start here when the requirement says "updates within a few seconds".
 
 **Long polling** holds the request until there is data or a timeout fires, then the client asks again. Latency drops to near zero, but each waiting client pins a connection. Events that arrive between one response and the next request get lost unless the client sends a cursor (`?after=msg_1042`) and the server replays from it.
 

@@ -51,7 +51,7 @@ The distinction matters most for long-lived connections. A layer 4 balancer bala
 | Power of two choices | Sample two backends at random, take the less loaded | Many balancer nodes with stale load data; avoids herding onto one "least loaded" box |
 | Hash (source IP, header, or key) | Same input always maps to the same backend | You need affinity, such as a cache shard per user |
 
-Plain hashing with `hash(key) mod N` remaps almost every key when N changes. If affinity matters across scale events, use [consistent hashing](./consistent-hashing.md), which moves only about 1/N of the keys.
+Plain hashing with $\operatorname{hash}(\text{key}) \bmod N$ remaps almost every key when $N$ changes. If affinity matters across scale events, use [consistent hashing](./consistent-hashing.md), which moves only about $1/N$ of the keys.
 
 ### Health checks
 
