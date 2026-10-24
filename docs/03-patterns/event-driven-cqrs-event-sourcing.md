@@ -24,11 +24,11 @@ Some domains also care about how the state was reached, not just what it is: a l
 
 ```mermaid
 flowchart LR
-  CMD[Command: PlaceOrder] --> WS[Write model]
+  CMD["Command: PlaceOrder"] --> WS[Write model]
   WS -->|append| ES[(Event store or write DB)]
   ES -->|change feed| BUS{{Event bus}}
-  BUS --> P1[Projection: order history view]
-  BUS --> P2[Projection: sales dashboard]
+  BUS --> P1["Projection: order history view"]
+  BUS --> P2["Projection: sales dashboard"]
   BUS --> P3[Email service]
   P1 --> RV1[(Read DB 1)]
   P2 --> RV2[(Read DB 2)]

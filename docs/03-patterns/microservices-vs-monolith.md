@@ -66,7 +66,7 @@ Splitting is the easy part. Running many services needs a platform:
 ```mermaid
 flowchart LR
   C[Clients] --> F[Routing facade]
-  F -->|/orders/*| NS[New orders service]
+  F -->|"/orders/*"| NS[New orders service]
   F -->|everything else| M[Monolith]
   NS -->|events| M
   M -->|events| NS
