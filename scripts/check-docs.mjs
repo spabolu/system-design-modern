@@ -32,9 +32,12 @@ export function checkBannedTerms(path, source) {
     error(path, lineAt(source, match.index), `Azure-only rule forbids "${match[0]}".`));
 }
 
+function hasMermaid(node) {
+  return (node.type === 'code' && node.lang === 'mermaid') || Boolean(node.children?.some(hasMermaid));
+}
+
 function sectionContent(lines) {
   let fence;
-  let mermaid = false;
   const text = [];
   for (const line of lines) {
     const marker = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
@@ -45,22 +48,84 @@ function sectionContent(lines) {
       }
     } else if (marker) {
       fence = marker[1];
-      if (marker[1][0] === '`' && /^mermaid(?:\s|$)/.test(marker[2].trim())) {
-        mermaid = true;
-      }
     } else {
       text.push(line);
     }
   }
   return {
-    mermaid,
+    mermaid: hasMermaid(fromMarkdown(lines.join('\n'))),
     text: text.join('\n').replace(/<!--[\s\S]*?-->/g, '')
       .replace(/^ {0,3}#{1,6}\s.*$/gm, '').trim(),
   };
 }
 
+const caseStudySectionRules = {
+  'High-level design'(section, report) {
+    const steps = section.children.filter(({depth}) => depth === 3);
+    if (steps.length === 0) {
+      report(section, 'Section "## High-level design" needs at least one ### heading.');
+    }
+    for (const [index, step] of steps.entries()) {
+      if (step.heading === 'Data flow') {
+        if (index !== 0) report(step, '"### Data flow" must be the first ### in High-level design.');
+      } else if (!sectionContent(step.body).mermaid) {
+        report(step, `High-level design "${step.heading}" needs a Mermaid fence (\`\`\`mermaid).`);
+      }
+    }
+  },
+  'Deep dives'(section, report) {
+    const dives = section.children.filter(({depth}) => depth === 3);
+    if (dives.length < 2) {
+      report(section, 'Section "## Deep dives" needs at least two ### headings.');
+    }
+    for (const dive of dives) {
+      const solutions = [];
+      for (const rung of dive.children.filter(({depth}) => depth === 4)) {
+        const match = rung.heading.match(/^(Bad|Good|Great) solution: .+/);
+        if (!match) {
+          report(rung, `Deep dive "${dive.heading}" needs a rung heading like "#### Good solution: <name>" instead of "#### ${rung.heading}".`);
+          continue;
+        }
+        solutions.push({section: rung, rank: ['Bad', 'Good', 'Great'].indexOf(match[1])});
+      }
+      if (solutions.length < 2) {
+        report(dive, `Deep dive "${dive.heading}" needs at least two rung headings like "#### Good solution: <name>".`);
+      }
+      for (const [index, {section: rung, rank}] of solutions.entries()) {
+        if (index > 0 && rank < solutions[index - 1].rank) {
+          report(rung, `Deep dive "${dive.heading}" must keep rungs in Bad, Good, Great order without descending.`);
+        }
+        for (const label of ['Approach', 'Challenges']) {
+          if (!rung.paragraphs.some((text) => text.startsWith(`**${label}.**`))) {
+            report(rung, `Rung "${rung.heading}" in deep dive "${dive.heading}" needs a paragraph starting with **${label}.**.`);
+          }
+        }
+      }
+      const last = solutions.at(-1);
+      if (last?.rank === 0) {
+        report(last.section, `Deep dive "${dive.heading}" must end on Good or Great, not Bad.`);
+      }
+    }
+  },
+  'What is expected at each level'(section, report) {
+    const expected = ['Mid-level', 'Senior', 'Staff+'];
+    const levels = section.children.filter(({depth}) => depth === 3);
+    const mismatch = levels.find((level, index) => level.heading !== expected[index]);
+    if (mismatch || levels.length !== expected.length) {
+      report(mismatch ?? section,
+        'Section "## What is expected at each level" needs exactly ### Mid-level, ### Senior, and ### Staff+ in that order.');
+    }
+    for (const level of levels) {
+      if (!sectionContent(level.body).text) {
+        report(level, `Level "### ${level.heading}" needs non-empty body text.`);
+      }
+    }
+  },
+};
+
 export function checkDoc({
   path, source, expectedPosition, expectedHeadings, diagramSections = [],
+  pageType = 'concept', document,
 }, {strict = false} = {}) {
   const diagnostics = [];
   const frontMatter = source.match(frontMatterPattern);
@@ -109,9 +174,10 @@ export function checkDoc({
   if (!expectedHeadings) return diagnostics;
 
   const body = source.replace(frontMatterPattern, (match) => match.replace(/[^\n]/g, ''));
-  const sections = markdownSections(body);
+  const sections = markdownSections(body, document);
   const actual = sections.map(({heading}) => heading);
-  if (JSON.stringify(actual) !== JSON.stringify(expectedHeadings)) {
+  const headingsMatch = JSON.stringify(actual) === JSON.stringify(expectedHeadings);
+  if (!headingsMatch) {
     diagnostics.push(error(path, sections[0]?.line ?? 1,
       `Expected ## headings in order [${expectedHeadings.join(', ')}]; found [${actual.join(', ')}].`));
   }
@@ -124,6 +190,10 @@ export function checkDoc({
     }
     if (diagramSections.includes(section.heading) && !content.mermaid) {
       diagnostics.push(error(path, section.line, `Section "## ${section.heading}" needs a Mermaid fence (\`\`\`mermaid).`));
+    }
+    if (pageType === 'case-study' && headingsMatch) {
+      caseStudySectionRules[section.heading]?.(section,
+        (heading, message) => diagnostics.push(error(path, heading.line, message)));
     }
   }
   return diagnostics;
@@ -169,7 +239,8 @@ export async function checkProject({registrySource, files}, {strict = false} = {
       if (node.type === 'definition') definitions.set(node.identifier, node.url);
       node.children?.forEach(visit);
     };
-    visit(fromMarkdown(source));
+    const document = fromMarkdown(source);
+    visit(document);
     if (level && level.number !== 6 && level.folder !== 'docs/04-azure') {
       for (const link of links) {
         const url = link.url ?? definitions.get(link.identifier);
@@ -193,7 +264,9 @@ export async function checkProject({registrySource, files}, {strict = false} = {
       source,
       expectedPosition: registry.get(path),
       expectedHeadings: level ? templates.get(templateName) : undefined,
-      diagramSections: level?.number === 6 ? ['High-level design', 'On Azure'] : ['How it works'],
+      diagramSections: level?.number === 6 ? ['On Azure'] : ['How it works'],
+      pageType: templateName,
+      document,
     }, {strict}));
   }
   const diagramDiagnostics = await Promise.all(diagrams.map(async ({path, line, source}) => {
