@@ -66,7 +66,7 @@ Causal consistency sits between session and linearizable. It guarantees that any
 
 ### Quorums
 
-Many replicated stores tune consistency with quorums. With N replicas, a write waits for W acknowledgments and a read queries R replicas. If R + W > N, every read set overlaps every write set, so a read sees the latest acknowledged write. N = 3, W = 2, R = 2 is the classic balanced choice. W = 3, R = 1 makes reads fast and writes fragile, and W = 1 makes writes fast at the risk of losing a write if that one replica dies.
+Many replicated stores tune consistency with quorums. With $N$ replicas, a write waits for $W$ acknowledgments and a read queries $R$ replicas. If $R + W > N$, every read set overlaps every write set, so a read sees the latest acknowledged write. $N = 3$, $W = 2$, $R = 2$ is the classic balanced choice. $W = 3$, $R = 1$ makes reads fast and writes fragile, and $W = 1$ makes writes fast at the risk of losing a write if that one replica dies.
 
 ### When there are multiple writers
 
@@ -86,7 +86,7 @@ Azure Cosmos DB documents its five consistency levels against the PACELC trade-o
 
 | Cosmos DB level | Guarantee | Generic model | Cost and latency notes |
 | --- | --- | --- | --- |
-| Strong | Linearizable reads | Linearizable | Reads cost about 2× RU. Multi-region writes take about 2 × round trip between the two farthest regions + 10 ms at P99. Not available with multiple write regions. |
+| Strong | Linearizable reads | Linearizable | Reads cost about 2× RU. Multi-region writes take about $2 \times \text{round trip} + 10\ \text{ms}$ at P99, using the round trip between the two farthest regions. Not available with multiple write regions. |
 | Bounded staleness | Reads lag by at most K versions or T time | Bounded staleness | Reads cost about 2× RU. Minimum K and T are 10 writes or 5 seconds in one region, 100,000 writes or 300 seconds across regions. |
 | Session | Read-your-writes and write-follows-reads within a session token | Session | The default level for new accounts. Reads cost 1× RU. |
 | Consistent prefix | Writes in one transactional batch become visible together and in order; single-document writes behave as eventual | Consistent prefix, for transactional batches | Reads cost 1× RU. |
@@ -94,7 +94,7 @@ Azure Cosmos DB documents its five consistency levels against the PACELC trade-o
 
 Inside a region, Cosmos DB commits every write to a majority of a four-replica set (three replicas) whatever the level. The levels differ in which replicas a read consults and in how writes reach other regions. Below Strong, other regions receive writes asynchronously. Reads and writes are guaranteed under 10 ms at P99 at every level, apart from the cross-region write cost of Strong. Note the limit on Consistent prefix. Two separate single-document writes (a comment and its reply) have no ordering guarantee between them. Put them in one transactional batch, or read at Session or stronger, if order matters.
 
-**Tier and configuration decisions.** The account default is the main lever. With Strong, every write in a multi-region account pays cross-region latency. For regions at East US and West Europe (about 85 ms P50 round trip), that is about 2 × 85 + 10 = 180 ms per write at P99, and you can't enable multi-region writes. Choosing multi-region writes for write availability means choosing Session or weaker. The traditional per-request override can only relax the account default. A newer read-consistency strategy option (preview, direct mode, recent Java and .NET SDKs) can request stronger reads per call, but overrides only change reads, and writes still replicate according to the account level.
+**Tier and configuration decisions.** The account default is the main lever. With Strong, every write in a multi-region account pays cross-region latency. For regions at East US and West Europe (about 85 ms P50 round trip), that is about $2 \times 85 + 10 = 180\ \text{ms}$ per write at P99, and you can't enable multi-region writes. Choosing multi-region writes for write availability means choosing Session or weaker. The traditional per-request override can only relax the account default. A newer read-consistency strategy option (preview, direct mode, recent Java and .NET SDKs) can request stronger reads per call, but overrides only change reads, and writes still replicate according to the account level.
 
 **Other Azure stores sit at fixed points on the spectrum.**
 
