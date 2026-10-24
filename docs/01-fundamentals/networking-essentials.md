@@ -14,7 +14,7 @@ sidebar_position: 3
 
 ## Why it matters
 
-Across long distances, latency is mostly a count of round trips. Between East US and West Europe, Azure measures a median round trip of about 83 ms. A fresh HTTPS connection over TCP and TLS 1.2 needs three round trips before the request leaves the client, so roughly 250 ms is gone before your service sees the request. With TLS 1.3 it drops to two round trips, about 166 ms. With HTTP/3 it drops to one, about 83 ms. No amount of server tuning recovers those milliseconds. Only fewer round trips or a shorter path does.
+Across long distances, latency is mostly a count of round trips. Between East US and West Europe, Azure measures a median round trip of about 85 ms. A fresh HTTPS connection over TCP and TLS 1.2 needs three round trips before the request leaves the client, so roughly 255 ms is gone before your service sees the request. With TLS 1.3 it drops to two round trips, about 170 ms. With HTTP/3 it drops to one, about 85 ms. No amount of server tuning recovers those milliseconds. Only fewer round trips or a shorter path does.
 
 Networking choices also decide failure behavior. A DNS answer cached for an hour keeps clients pointed at a dead region for an hour. A layer 4 load balancer in front of gRPC services can pin every request from a busy client to one backend, because HTTP/2 sends them all over one long-lived connection. These failures don't show up in a design review unless someone knows the layer underneath.
 

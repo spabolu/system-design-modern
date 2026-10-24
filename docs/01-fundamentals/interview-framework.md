@@ -97,7 +97,7 @@ Most interviewers are cloud-neutral, so lead with the generic component and its 
 | Stage | Azure decision it surfaces | Example |
 | --- | --- | --- |
 | Requirements | Zone-redundant in one region, or multi-region | An availability target that must survive a region outage needs a second region. Zones alone don't cover it. |
-| Requirements | Which regions | Azure publishes inter-region round trips. East US to West Europe is about 83 ms at P50, so one global write region puts a floor under far-away users. |
+| Requirements | Which regions | Azure publishes inter-region round trips. East US to West Europe is about 85 ms at P50, so one global write region puts a floor under far-away users. |
 | Core entities | Partition key | A Cosmos DB logical partition holds at most 20 GB and 10,000 RU/s, so a per-user key works and a per-country key does not. |
 | API | Edge and gateway | Azure Front Door for global HTTP entry, and API Management when you need versioning, keys, and quotas. |
 | High-level design | Service mapping | Map each box to a managed service. Later levels include an Azure service map page for this. |

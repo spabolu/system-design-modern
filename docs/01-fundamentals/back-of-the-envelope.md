@@ -63,9 +63,9 @@ The generic rows below come from the widely shared "Latency Numbers Every Progra
 | Round trip between Azure availability zones | under ~2 ms | Azure availability zones overview |
 | Azure Ultra Disk I/O | under 1 ms | Azure managed disk types |
 | Azure Cosmos DB point read or write | under 10 ms at P99 | Azure Cosmos DB consistency levels |
-| Azure round trip, East US to East US 2 | 8 ms (P50) | Azure network latency statistics |
-| Azure round trip, East US to West Europe | 83 ms (P50) | Azure network latency statistics |
-| Azure round trip, East US to Southeast Asia | 224 ms (P50) | Azure network latency statistics |
+| Azure round trip, East US to East US 2 | about 9 ms (P50) | Azure network latency statistics |
+| Azure round trip, East US to West Europe | about 85 ms (P50) | Azure network latency statistics |
+| Azure round trip, East US to Southeast Asia | about 224 ms (P50) | Azure network latency statistics |
 
 Three ratios do most of the work. Memory is about 1,000 times faster than an SSD random read. A round trip inside a datacenter costs about as much as three SSD reads. A round trip across an ocean costs as much as 100 or more round trips inside a datacenter. The last ratio is why chatty protocols and synchronous cross-region writes hurt.
 
@@ -128,7 +128,7 @@ Each Azure data service sells and limits capacity in its own unit. Convert your 
 
 **SKU decision.** Consistency level is a capacity decision in Cosmos DB, not just a correctness one. Strong and Bounded staleness reads cost about twice the RU of Session, Consistent prefix, or Eventual reads, so the read side of your estimate doubles. For disks, Premium SSD v2 tops out at 80,000 IOPS per disk and Ultra Disk at 400,000. If the estimate lands between those numbers for a single node, the disk type is decided.
 
-**Zone and region numbers.** Synchronous replication across zones adds about 2 ms per round trip, which most request budgets absorb. Synchronous replication across regions adds the region-pair round trip, from 8 ms (East US to East US 2) to over 200 ms (East US to Southeast Asia). That is the number to bring when someone proposes strongly consistent writes across continents.
+**Zone and region numbers.** Synchronous replication across zones adds about 2 ms per round trip, which most request budgets absorb. Synchronous replication across regions adds the region-pair round trip, from about 9 ms (East US to East US 2) to over 200 ms (East US to Southeast Asia). That is the number to bring when someone proposes strongly consistent writes across continents.
 
 **Gotcha: limits apply per partition, account, and unit, not just in total.** A container provisioned at 100,000 RU/s still throttles a single logical partition at 10,000 RU/s. Event Hubs works the same way. Learn suggests planning on about 1 MB/s of ingress per partition on the Standard tier, so a partition key that routes a busy tenant's events to one partition holds that tenant near that rate, however many throughput units the namespace has. Estimate the hottest key as well as the total, and compare it with the per-partition limit.
 
