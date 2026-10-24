@@ -65,9 +65,44 @@ function project() {
   };
 }
 
-test('complete concept and case-study pages pass', () => {
+test('complete concept and case-study pages pass', async () => {
   assert.deepEqual(check(page()), []);
-  assert.deepEqual(checkProject(project()), []);
+  assert.deepEqual(await checkProject(project()), []);
+});
+
+test('Mermaid syntax errors report the fence line without rejecting valid diagrams', async () => {
+  const fixture = project();
+  const path = 'docs/intro.md';
+  const source = `${frontMatter}
+\`\`\`mermaid
+flowchart LR
+  Client["HTTP client"] --> Server["Azure service"]
+\`\`\`
+\`\`\`mermaid
+sequenceDiagram
+  Client->>Server: Request
+  Server-->>Client: Response
+\`\`\`
+\`\`\`mermaid
+flowchart LR
+  Client[unfinished
+\`\`\`
+`;
+  fixture.files.set(path, source);
+  const diagnostics = await checkProject(fixture);
+  assert.deepEqual(diagnostics, [{
+    path,
+    line: 16,
+    severity: 'error',
+    message: 'Invalid mermaid diagram: Parse error on line 3:',
+  }]);
+});
+
+test('Mermaid examples nested inside code fences are not parsed', async () => {
+  const fixture = project();
+  fixture.files.set('docs/intro.md',
+    `${frontMatter}\n\`\`\`\`markdown\n\`\`\`mermaid\nnot a diagram\n\`\`\`\n\`\`\`\`\n`);
+  assert.deepEqual(await checkProject(fixture), []);
 });
 
 for (const field of ['title', 'description', 'sidebar_position']) {
@@ -87,10 +122,10 @@ test('frontmatter must be valid YAML with non-empty text and an integer position
   }
 });
 
-test('intro needs frontmatter but is exempt from concept sections', () => {
+test('intro needs frontmatter but is exempt from concept sections', async () => {
   const fixture = project();
   fixture.files.set('docs/intro.md', 'Introduction without frontmatter.');
-  hasMessage(checkProject(fixture), /Missing YAML frontmatter/);
+  hasMessage(await checkProject(fixture), /Missing YAML frontmatter/);
 });
 
 test('missing section is reported', () => {
@@ -145,18 +180,18 @@ test('a Mermaid example inside another code fence does not count as a diagram', 
 });
 
 for (const missing of ['High-level design', 'On Azure']) {
-  test(`case studies need a Mermaid fence in ${missing}`, () => {
+  test(`case studies need a Mermaid fence in ${missing}`, async () => {
     const fixture = project();
     fixture.files.set('docs/06-case-studies/case.md',
       page(caseStudy, ['High-level design', 'On Azure'].filter((heading) => heading !== missing)));
-    hasMessage(checkProject(fixture), new RegExp(`${missing}.*Mermaid fence`));
+    hasMessage(await checkProject(fixture), new RegExp(`${missing}.*Mermaid fence`));
   });
 }
 
-test('level five uses the concept template, not the case-study template', () => {
+test('level five uses the concept template, not the case-study template', async () => {
   const fixture = project();
   fixture.files.set('docs/05-advanced/advanced.md', page(caseStudy, ['High-level design', 'On Azure']));
-  hasMessage(checkProject(fixture), /Expected ## headings.*Why it matters.*How it works/);
+  hasMessage(await checkProject(fixture), /Expected ## headings.*Why it matters.*How it works/);
 });
 
 test('stub warning becomes a strict error and skips content checks', () => {
@@ -207,43 +242,43 @@ test('paper names and generic pub/sub are allowed', () => {
 });
 
 for (const path of ['docs/intro.md', 'blog/note.md', 'src/pages/index.tsx', 'templates/concept.md']) {
-  test(`Azure-only rule covers ${path}, even in a stub`, () => {
+  test(`Azure-only rule covers ${path}, even in a stub`, async () => {
     const fixture = project();
     fixture.files.set(path, `${fixture.files.get(path) ?? ''}\n<!-- stub -->\nAWS`);
-    const diagnostics = checkProject(fixture);
+    const diagnostics = await checkProject(fixture);
     assert.ok(diagnostics.some((item) => item.path === path && /Azure-only/.test(item.message)));
   });
 }
 
-test('a registry slug must have a Markdown file', () => {
+test('a registry slug must have a Markdown file', async () => {
   const fixture = project();
   fixture.files.delete('docs/01-fundamentals/first.md');
-  hasMessage(checkProject(fixture), /Registry page is missing/);
+  hasMessage(await checkProject(fixture), /Registry page is missing/);
 });
 
-test('a doc in a level folder must be registered', () => {
+test('a doc in a level folder must be registered', async () => {
   const fixture = project();
   fixture.files.set('docs/01-fundamentals/unlisted.md', page());
-  hasMessage(checkProject(fixture), /not registered/);
+  hasMessage(await checkProject(fixture), /not registered/);
 });
 
-test('unknown level folders and nested unregistered docs are rejected', () => {
+test('unknown level folders and nested unregistered docs are rejected', async () => {
   for (const path of ['docs/07-extra/page.md', 'docs/01-fundamentals/nested/page.md']) {
     const fixture = project();
     fixture.files.set(path, page());
-    hasMessage(checkProject(fixture), /not registered/);
+    hasMessage(await checkProject(fixture), /not registered/);
   }
 });
 
-test('sidebar_position must match the page order in the registry', () => {
+test('sidebar_position must match the page order in the registry', async () => {
   const fixture = project();
   fixture.files.set('docs/01-fundamentals/second.md', page());
-  hasMessage(checkProject(fixture), /sidebar_position must be 2.*registry/);
+  hasMessage(await checkProject(fixture), /sidebar_position must be 2.*registry/);
 });
 
-test('a missing or malformed registry cannot silently pass', () => {
-  assert.throws(() => checkProject({...project(), registrySource: '# No registry'}), /Curriculum section/);
-  assert.throws(() => checkProject({...project(),
+test('a missing or malformed registry cannot silently pass', async () => {
+  await assert.rejects(checkProject({...project(), registrySource: '# No registry'}), /Curriculum section/);
+  await assert.rejects(checkProject({...project(),
     registrySource: registrySource.replace('`docs/01-fundamentals/`', '`elsewhere/`'),
   }), /Invalid curriculum row/);
 });

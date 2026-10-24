@@ -2,8 +2,10 @@ import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
+import {fromMarkdown} from 'mdast-util-from-markdown';
 import {parseCurriculum, markdownSections, sectionHeadings} from './curriculum.mjs';
 import {readTextFiles} from './files.mjs';
+import {parseMermaid} from './mermaid.mjs';
 
 const {load, JSON_SCHEMA} = createRequire(import.meta.url)('js-yaml');
 
@@ -126,9 +128,10 @@ export function checkDoc({
   return diagnostics;
 }
 
-export function checkProject({registrySource, files}, {strict = false} = {}) {
+export async function checkProject({registrySource, files}, {strict = false} = {}) {
   const levels = parseCurriculum(registrySource);
   const diagnostics = [];
+  const diagrams = [];
   const templates = new Map();
   for (const name of ['concept', 'case-study']) {
     const path = `templates/${name}.md`;
@@ -154,6 +157,13 @@ export function checkProject({registrySource, files}, {strict = false} = {}) {
       diagnostics.push(...checkBannedTerms(path, source));
     }
     if (!/^docs\/.*\.mdx?$/.test(path)) continue;
+    const visit = (node) => {
+      if (node.type === 'code' && node.lang === 'mermaid') {
+        diagrams.push({path, line: node.position.start.line, source: node.value});
+      }
+      node.children?.forEach(visit);
+    };
+    visit(fromMarkdown(source));
     const level = levels.find(({folder}) => path.startsWith(`${folder}/`));
     if (/^docs\/\d{2}-[^/]+\//.test(path) && !registry.has(path)) {
       diagnostics.push(error(path, 1, 'Doc file is not registered in the curriculum.'));
@@ -167,6 +177,11 @@ export function checkProject({registrySource, files}, {strict = false} = {}) {
       diagramSections: level?.number === 6 ? ['High-level design', 'On Azure'] : ['How it works'],
     }, {strict}));
   }
+  const diagramDiagnostics = await Promise.all(diagrams.map(async ({path, line, source}) => {
+    const message = await parseMermaid(source);
+    return message ? error(path, line, `Invalid mermaid diagram: ${message}`) : undefined;
+  }));
+  diagnostics.push(...diagramDiagnostics.filter(Boolean));
   return diagnostics;
 }
 
@@ -174,7 +189,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   try {
     const root = process.cwd();
     const files = readTextFiles(root, ['docs', 'blog', 'src', 'templates']);
-    const diagnostics = checkProject({
+    const diagnostics = await checkProject({
       registrySource: readFileSync(resolve(root, 'CONTRIBUTING.md'), 'utf8'), files,
     }, {strict: process.argv.includes('--strict')});
     for (const {path, line, severity, message} of diagnostics) {
