@@ -1,5 +1,5 @@
 ---
-title: "Long running tasks"
+title: "Long-running tasks"
 description: "How to take slow work off the request path with a queue, a pool of workers, and a status the client can check, so requests stay fast and work survives crashes."
 sidebar_position: 6
 ---
