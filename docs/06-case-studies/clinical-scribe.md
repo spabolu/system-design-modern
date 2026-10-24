@@ -107,11 +107,12 @@ Content-Type: audio/wav
 204 No Content
 ```
 
-Stopping hands the visit to the pipeline.
+Stopping hands the visit to the pipeline. The request carries the last piece's sequence number, so the API can tell a missing final piece from a finished upload.
 
 ```http
 POST /v1/visits/v_5c1e/stop
 Authorization: Bearer <token>
+{ "lastSequence": 180 }
 
 202 Accepted
 { "status": "drafting" }
@@ -177,7 +178,7 @@ flowchart LR
 
 1. The app calls `POST /v1/visits`. The Visit API saves `{visitId, patientRef, clinicianId, consent, status}` with status `recording`.
 2. The app uploads each 5-second piece with `PUT` and deletes it from the phone only after the `204`. A retry overwrites the same piece ([idempotency and retries](../03-patterns/idempotency-and-retries.md)), so a dropped connection costs a delay, never audio.
-3. On stop, the API confirms every sequence number arrived, joins the pieces into one file, and starts the visit's orchestration.
+3. On stop, the API checks that every piece from 1 through the `lastSequence` in the request arrived, joins the pieces into one file, and starts the visit's orchestration.
 4. The orchestrator sends the file to transcription with diarization on and saves segments as `{visitId, spanId, speaker, startMs, endMs, text}`. Span IDs are short and stable, like `s14`, because the model will cite them.
 
 Diarization says which segments share a speaker, not who the speaker is. The draft step maps speakers to roles, and verification treats a wrong mapping as a failure, since a relative's history written as the patient's is a fabrication.
@@ -305,7 +306,7 @@ In a 45-minute interview I'd draw the Good rung, name the independent verifier a
 
 ### 2) How do we guarantee nothing reaches the EHR unsigned, whatever is said in the room?
 
-This serves non-functional requirement 3. Simon Willison's lethal trifecta names three capabilities that must not meet in one system, which are access to private data, exposure to untrusted content, and a way to communicate externally ([the lethal trifecta](https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/)). A scribe has all three by default. The transcript is patient data, anything said in the room is untrusted, and filing to the EHR or loading a link on the review screen are ways out. You can't remove the first two without removing the product, so break the third by construction ([guardrails in production AI agents](../05-advanced/production-ai-agents.md)).
+This serves non-functional requirement 3. Simon Willison's lethal trifecta names three capabilities that must not meet in one system, which are access to private data, exposure to untrusted content, and a way to communicate externally ([the lethal trifecta](https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/)). A scribe has all three by default. The transcript is patient data, anything said in the room is untrusted, and the review screen is a way out, because a link or image it loads sends data wherever the model pointed it. You can't remove the first two without removing the product, so break the third by construction ([guardrails in production AI agents](../05-advanced/production-ai-agents.md)). Filing to the EHR isn't a way out, since the note goes back into the same patient's record the visit belongs to. It is the one consequential action. A note filed without the clinician's approval is an integrity failure, not a leak, and the signature gate below exists to stop it.
 
 #### Bad solution: A filing tool behind an instruction
 
@@ -366,7 +367,7 @@ This serves non-functional requirement 2. Look at the budget first. Transcriptio
 
 **Approach.** This is the high-level design. Send the joined file to fast transcription, which runs synchronously and faster than real time with predictable latency, and supports diarization ([fast transcription](https://learn.microsoft.com/azure/ai-services/speech-service/fast-transcription-create)). Files must be under 500 MB and under 5 hours, far beyond any visit ([Speech quotas](https://learn.microsoft.com/azure/ai-services/speech-service/speech-services-quotas-and-limits)).
 
-**Challenges.** All the audio waits for stop, so transcription time grows with the visit and eats the drafting budget. The draft runs as one long call, and verification waits for it. Fast and batch transcription also share 600 requests per minute per resource, which 100 visits a minute at peak fits inside with little room for re-runs.
+**Challenges.** All the audio waits for stop, so transcription time grows with the visit and eats the drafting budget. The draft runs as one long call, and verification waits for it. Request rate isn't the problem. Fast and batch transcription share 600 requests per minute per resource ([Speech quotas](https://learn.microsoft.com/azure/ai-services/speech-service/speech-services-quotas-and-limits)), and 100 visits a minute at peak uses a sixth of that, leaving 500 a minute for re-runs.
 
 #### Great solution: Stream during the visit and fan out after it
 
@@ -486,7 +487,7 @@ flowchart LR
 - **Text Analytics for health.** The REST API is asynchronous and keeps results for 24 hours, while the container runs synchronously ([call the API](https://learn.microsoft.com/azure/ai-services/language-service/text-analytics-for-health/how-to/call-api)), so choose the container if the privacy office objects to results sitting on the service for a day.
 - **Azure OpenAI.** Data Zone deployments process prompts only within the chosen data zone, here the US ([deployment types](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/deployment-types)). Data at rest, including the abuse monitoring store, stays in the customer's geography, and prompts aren't used to train models ([data privacy](https://learn.microsoft.com/azure/foundry/responsible-ai/openai/data-privacy)). Structured outputs enforce the JSON Schema ([structured outputs](https://learn.microsoft.com/azure/foundry/openai/how-to/structured-outputs)), and a transcript-first prompt clears the 1,024-token prefix that prompt caching needs ([prompt caching](https://learn.microsoft.com/azure/foundry/openai/how-to/prompt-caching)).
 - **Durable Functions.** An orchestration can wait for an external event, which Learn describes for approvals ([external events](https://learn.microsoft.com/azure/azure-functions/durable/durable-functions-external-events)), so each visit's orchestration waits on the signature. Use the Durable Task Scheduler as the managed backend ([Durable Task Scheduler](https://learn.microsoft.com/azure/azure-functions/durable/durable-task-scheduler/durable-task-scheduler)). Flex Consumption adds virtual network integration and needs at least two always-ready instances per function group for zone redundancy ([Flex Consumption](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan)).
-- **Cosmos DB.** `/visitId` keeps a visit's versions and flags in one partition. Disable local auth so every request carries an Entra ID identity, and scope a role assignment to a single container ([role-based access](https://learn.microsoft.com/azure/cosmos-db/how-to-setup-rbac)). Data-plane actions split create from replace and upsert ([data plane actions](https://learn.microsoft.com/azure/cosmos-db/nosql/security/reference-data-plane-actions)), so with signatures in their own container, the API's role there can create signatures but never rewrite them.
+- **Cosmos DB.** `/visitId` keeps a visit's versions and flags in one partition. Disable local auth so every request carries an Entra ID identity, and scope a role assignment to a single container ([role-based access](https://learn.microsoft.com/azure/cosmos-db/how-to-setup-rbac)). The Cosmos DB Built-in Data Contributor role grants `items/*`, which includes replace and upsert, so it can rewrite a signature. Define a custom data-plane role with only the `readMetadata`, `items/read`, and `items/create` actions ([data plane actions](https://learn.microsoft.com/azure/cosmos-db/nosql/security/reference-data-plane-actions)) and assign it to the API on the signatures container, and the API can create signatures but never rewrite them.
 - **Audit log.** Protected append writes let you add blocks to an append blob under a retention policy while existing blocks can't be changed or deleted ([container-level WORM](https://learn.microsoft.com/azure/storage/blobs/immutable-container-level-worm-policies)). A locked policy can't be deleted and its period can only be extended ([immutable storage](https://learn.microsoft.com/azure/storage/blobs/immutable-storage-overview)), so set it with the health system's compliance team.
 - **FHIR service and de-identification.** The [FHIR service](https://learn.microsoft.com/azure/healthcare-apis/fhir/overview) supports conditional create ([supported features](https://learn.microsoft.com/azure/healthcare-apis/fhir/fhir-features-supported)), so it can stand in for the EHR in tests. The de-identification service redacts or replaces 27 entity types, including the 18 HIPAA identifiers ([de-identification](https://learn.microsoft.com/azure/healthcare-apis/deidentification/overview)).
 - **Tracing and evaluation.** Foundry runs evaluators continuously on sampled production traffic ([observability](https://learn.microsoft.com/azure/foundry/concepts/observability)). Traces can capture inputs and outputs, and Learn says to redact personal data before telemetry ([tracing](https://learn.microsoft.com/azure/foundry/observability/concepts/trace-agent-concept)), so log span IDs and flag reasons, not transcript text.
