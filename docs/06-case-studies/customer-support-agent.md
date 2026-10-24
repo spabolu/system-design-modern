@@ -30,9 +30,9 @@ These four are a support desk's job, which is to answer, act, escalate, and reme
 
 ## Non-functional requirements
 
-1. **No invented policy.** Fewer than 0.5% of answers make a claim the cited help-center text doesn't support, measured apart from the abstention rate so refusing everything can't meet it. A wrong refund window is a promise the company may have to keep, while an abstention costs a few minutes of a person's time.
+1. **No invented policy.** Fewer than 0.5% of answers make a claim that neither the cited help-center text nor an order record supports, measured apart from the abstention rate so refusing everything can't meet it. A wrong refund window is a promise the company may have to keep, while an abstention costs a few minutes of a person's time.
 2. **Escalate when it should.** The agent hands off at least 95% of the conversations labeled as needing a person, such as a legal threat. Total handoffs stay under 20%, for the staffing reason below.
-3. **Actions are safe by construction.** The agent reaches only the signed-in customer's orders, a cancel takes effect at most once, and no money moves until a named support agent approves. Order state is read live at action time, choosing consistency over availability.
+3. **Actions are safe by construction.** The agent reaches only the signed-in customer's orders, a cancel takes effect at most once, and no refund is issued until a named support agent approves. Order state is read live at action time, choosing consistency over availability.
 4. **Replies feel like chat.** A help-center answer arrives within 4 s at p95 and a reply that calls a tool within 5 s, with a progress status inside 500 ms.
 5. **A handoff never loses context, and an outage degrades to a person.** If the model or search is down, new conversations go straight to the human queue.
 
@@ -65,7 +65,7 @@ $$
 \end{aligned}
 $$
 
-Each point of handoff rate is 400 cases, about 53 hours, or 8 people. So the abstention floor in deep dive 1 is a business threshold, not a model setting. Traffic is small by comparison. At 5 turns a conversation, $200{,}000 / 86{,}400 \approx 2.3$ turns a second, and about 23 in a holiday peak hour.
+Each point of handoff rate is 400 cases, about 53 hours, or 8 people. So the abstention floor in deep dive 1 is a business threshold, not a model setting. Traffic is small by comparison. At 5 turns a conversation, $200{,}000 / 86{,}400 \approx 2.3$ turns a second, and about 23 at a 10x holiday peak.
 
 ## Core entities
 
@@ -120,8 +120,8 @@ Approvers with the `refund-approver` role use two console endpoints, for require
 
 ```json
 GET /v1/approvals?status=pending
--> 200 { "items": [{ "approvalId": "ap_19", "orderId": "58-1193", "amount": "64.10",
-                     "eligible": true, "rule": "return-30d-unused" }] }
+-> 200 { "items": [{ "approvalId": "ap_19", "orderId": "58-0874", "amount": "89.00",
+                     "eligible": true, "rule": "gift-return-60d" }] }
 
 POST /v1/approvals/{approvalId}/decision
 { "decision": "approve", "note": "Photo matches the item" }
@@ -149,9 +149,9 @@ flowchart LR
 
 1. The customer sends a message. The agent service appends it and loads the recent turns.
 2. It runs one hybrid query, keyword and vector together, and reranks the results. [AI systems, RAG, and agents](../05-advanced/ai-systems-rag-and-agents.md) covers chunking and hybrid search.
-3. If the best chunk scores under a floor, it skips the model and offers a person. Abstaining on weak retrieval is the first pattern in [production AI agents](../05-advanced/production-ai-agents.md), and deep dive 1 tunes it.
+3. If the best chunk scores under a floor, it skips the model and offers a person. Abstaining on weak retrieval is a pattern in [production AI agents](../05-advanced/production-ai-agents.md), and deep dive 1 tunes it.
 4. Otherwise the model gets the instructions, the top chunks with their IDs, and the recent turns, and writes a short answer citing chunk IDs.
-5. The service drops citations to IDs it didn't send and returns the answer with article links.
+5. The service drops citations to IDs it didn't send, strips any other URL or image, and returns the answer with article links.
 
 ### 2) Customers can check, cancel, and request refunds on their own orders
 
@@ -218,9 +218,11 @@ flowchart LR
   "ticketId": "tk_908",
   "conversationId": "cv_7Q2",
   "reason": "below_floor",
-  "summary": "Wants to return a jacket that was a gift, delivered 41 days ago.",
-  "verified": [{ "orderId": "58-1193", "status": "delivered", "deliveredAt": "2026-05-02" }],
-  "actions": [{ "actionId": "ac_51", "kind": "propose_refund", "status": "pending_approval" }],
+  "summary": "Cancelled 58-1193. Wants to return a jacket from 58-0874 that was a gift, delivered 41 days ago.",
+  "verified": [{ "orderId": "58-1193", "status": "cancelled" },
+               { "orderId": "58-0874", "status": "delivered", "deliveredAt": "2026-05-02" }],
+  "actions": [{ "actionId": "ac_44", "kind": "cancel_order", "status": "done" },
+              { "actionId": "ac_51", "kind": "propose_refund", "status": "pending_approval" }],
   "lastMessage": "It was a gift and I only just opened it.",
   "transcript": "conversations/cv_7Q2"
 }
@@ -286,7 +288,7 @@ In February 2024 a Canadian tribunal held Air Canada liable for its website chat
 
 #### Good solution: Hybrid retrieval, rerank, and a floor on the score
 
-**Approach.** Run keyword and vector search together, then rerank with a ranker that scores each chunk against the question on a fixed scale. If the top score is under a floor, skip the model and offer a person, the idea behind corrective RAG ([CRAG](https://arxiv.org/abs/2401.15884)). Put the strongest chunks first, since models use the start or end of a long context better than the middle ([Lost in the Middle](https://arxiv.org/abs/2307.03172)).
+**Approach.** Run keyword and vector search together, then rerank with a ranker that scores each chunk against the question on a fixed scale. If the top score is under a floor, skip the model and offer a person. CRAG also grades retrieval before generating ([CRAG](https://arxiv.org/abs/2401.15884)). Put the strongest chunks first, since models use the start or end of a long context better than the middle ([Lost in the Middle](https://arxiv.org/abs/2307.03172)).
 
 ```mermaid
 flowchart LR
@@ -302,7 +304,7 @@ flowchart LR
 
 #### Great solution: Gate both sides of the model and tune the floor on labeled data
 
-**Approach.** Keep the floor and check the answer too. Before the reply leaves, a groundedness check compares each claim with the chunks the model was given. An unsupported answer is never shown, and the conversation is handed off as `ungrounded`. That is why answers aren't streamed token by token, since a check after the customer has read the answer is a log entry, not a gate. Then set the floor from data. Label a few thousand real questions as answerable or needing a person, sweep the floor, and plot unsupported-claim rate against handoff rate. Pick the lowest handoff rate that meets the 0.5% target, and sweep again when the ranker or help center changes.
+**Approach.** Keep the floor and check the answer too. Before the reply leaves, a groundedness check compares each claim with the chunks and tool results the model was given. Tool results count as sources, so "58-1193 ships Tuesday" passes on the order record and the check measures invented policy, not order facts. An unsupported answer is never shown, and the conversation is handed off as `ungrounded`. That is why answers aren't streamed token by token, since a check after the customer has read the answer is a log entry, not a gate. Then set the floor from data. Label a few thousand real questions as answerable or needing a person, sweep the floor, and plot unsupported-claim rate against handoff rate. Pick the lowest handoff rate that meets the 0.5% target, and sweep again when the ranker or help center changes.
 
 ```mermaid
 flowchart LR
@@ -311,7 +313,7 @@ flowchart LR
   R --> F{"Top score at or above floor?"}
   F -->|no| HO["Hand off with reason"]
   F -->|yes| M["Model writes answer"]
-  M --> G{"Every claim supported by sent chunks?"}
+  M --> G{"Every claim supported by sent chunks or tool results?"}
   G -->|no| HO
   G -->|yes| OUT["Answer with citations"]
   LAB[("Labeled questions")] -.->|"sweep sets the floor"| F
@@ -421,16 +423,16 @@ This serves requirement 4.
 
 #### Great solution: Typed notes per customer, treated as untrusted
 
-**Approach.** Build each note from structured fields, such as order IDs, action outcomes, the handoff reason, and the resolution code the person set, plus one model-written sentence. Store notes in the customer's own partition, so the partition key scopes every query instead of a filter someone can forget. At conversation start, take notes from the last 12 months that share an order ID with the message, plus the two or three nearest by vector. Run them through the injection check as documents, quote them in the prompt as history, and re-read anything live through a tool. Notes expire under the retention policy and are deleted with the account.
+**Approach.** Build each note from structured fields, such as order IDs, action outcomes, the handoff reason, and the resolution code the person set, plus one model-written sentence. Keep `/customerId` as the partition key for cost and locality, but don't trust it for isolation. A Cosmos DB query without a partition key filter fans out to all physical partitions ([query a container](https://learn.microsoft.com/azure/cosmos-db/how-to-query-container)), so the key is just another filter someone can forget. Put the guarantee in code. Read notes only through one memory repository that takes the customer ID from the sign-in token and always sets it as the partition key. It has no method that queries without one, and a test fails any cross-partition query on `notes`. At conversation start, take notes from the last 12 months that share an order ID with the message, plus the two or three nearest by vector. Run them through the injection check as documents, quote them in the prompt as history, and re-read anything live through a tool. Notes expire under the retention policy and are deleted with the account.
 
 ```mermaid
 flowchart LR
   CL["Closed conversation"] --> NW["Note writer"]
   AL[("Action log")] --> NW
   NW -->|"typed fields + one sentence"| MEM[("Ticket memory, partition customerId")]
-  NEW["New conversation"] --> QRY["Same order ID, or nearest few"]
-  MEM --> QRY
-  QRY --> SH{"Injection check as documents"}
+  NEW["New conversation"] --> REPO["Memory repository, customerId from token"]
+  REPO -->|"same order ID, or nearest few"| MEM
+  MEM --> SH{"Injection check as documents"}
   SH -->|clean| P["Prompt as quoted history"]
   SH -->|flagged| DROP["Drop note"]
   P --> M["Model"]
@@ -439,7 +441,7 @@ flowchart LR
 
 **Challenges.** Typed notes lose nuance, which is why the full transcript stays one link away in the help desk. The window and count need eval cases where memory helps and where it misleads.
 
-In a 45-minute interview I'd present the Good rung quickly and spend the time on partition scoping and untrusted memory, which most candidates miss.
+In a 45-minute interview I'd present the Good rung quickly and spend the time on scoping memory to the token's customer in one data-access path and on treating memory as untrusted, which most candidates miss.
 
 ### 5) How do we know it works before launch, and notice when it drifts?
 
@@ -516,15 +518,15 @@ flowchart LR
 | Safety checks | Azure AI Content Safety | Prompt Shields on messages and notes, groundedness detection on answers. |
 | Conversations, actions, notes | Azure Cosmos DB for NoSQL | `/customerId` partition key, and a `quantizedFlat` vector index on `notes`. |
 | Refund workflow | Azure Durable Functions on Durable Task Scheduler | Human interaction pattern. |
-| Handoff queue | Azure Service Bus | Standard tier, since a few thousand messages a day need no dedicated capacity. |
+| Handoff queue | Azure Service Bus | Standard tier, since about 8,000 handoffs a day need no dedicated capacity. |
 | Tracing and evaluation | Application Insights, Foundry evaluations | Traces of every model and tool call, plus sampled live evaluation. |
 
 ### Why these tiers
 
 - **Our own loop, not a prompt agent.** Foundry Agent Service runs prompt agents and hosted agents ([Foundry Agent Service](https://learn.microsoft.com/azure/foundry/agents/overview)). I'd run the loop in the agent service instead, because identity binding and propose-then-commit belong in code I can test. With function calling, the model returns the call and your application runs it ([function calling](https://learn.microsoft.com/azure/foundry/openai/how-to/function-calling)). Use `strict: true` schemas and set `parallel_tool_calls` to false, since structured outputs don't support parallel calls ([structured outputs](https://learn.microsoft.com/azure/foundry/openai/how-to/structured-outputs)).
-- **The floor goes on the reranker score.** Semantic ranker reranks the top 50 results and scores each from 4 down to 0 in `@search.rerankerScore` ([semantic ranking](https://learn.microsoft.com/azure/search/semantic-search-overview)), so the agent service applies the floor there. Learn says hybrid queries don't suit the preview vector `threshold` parameter, because RRF scores are small and volatile ([vector queries](https://learn.microsoft.com/azure/search/vector-search-how-to-query)).
-- **Groundedness detection is a preview gate.** It has a question-answering task and a non-reasoning mode for real-time use, and it supports English only ([groundedness detection](https://learn.microsoft.com/azure/ai-services/content-safety/concepts/groundedness)). The Content Safety overview lists it as preview ([Content Safety](https://learn.microsoft.com/azure/ai-services/content-safety/overview)). Keep a grader prompt on a small model as the fallback.
-- **Prompt Shields on documents, too.** It detects user prompt attacks and document attacks and reports without blocking, and a Foundry guardrail has document attack detection off by default ([Prompt Shields](https://learn.microsoft.com/azure/ai-services/content-safety/concepts/jailbreak-detection)). Send memory notes and free-text order fields as documents.
+- **The floor goes on the reranker score.** Semantic ranker scores each result from 4 down to 0 in `@search.rerankerScore` ([semantic ranking](https://learn.microsoft.com/azure/search/semantic-search-overview)), so the agent service applies the floor there. The [AI chat assistant](./ai-chat-assistant.md#why-these-tiers) covers hybrid search and the ranker itself. Learn says hybrid queries don't suit the preview vector `threshold` parameter, because RRF scores are small and volatile ([vector queries](https://learn.microsoft.com/azure/search/vector-search-how-to-query)).
+- **Groundedness detection is a preview gate.** It has a question-answering task and a non-reasoning mode for real-time use, and it supports English only ([groundedness detection](https://learn.microsoft.com/azure/ai-services/content-safety/concepts/groundedness)). Pass the chunks and the tool results as grounding sources. The Content Safety overview lists it as preview ([Content Safety](https://learn.microsoft.com/azure/ai-services/content-safety/overview)). Keep a grader prompt on a small model as the fallback.
+- **Prompt Shields on documents, too.** Send memory notes and free-text order fields to Prompt Shields as documents. The [AI chat assistant](./ai-chat-assistant.md#why-these-tiers) covers how Prompt Shields reports and why document attack detection needs turning on.
 - **A durable wait for approval.** In the human interaction pattern, an orchestrator notifies a person and races an external event against a durable timer ([human interaction](https://learn.microsoft.com/azure/azure-functions/durable/durable-functions-phone-verification)). Durable Task Scheduler is the recommended backend ([Durable Task Scheduler](https://learn.microsoft.com/azure/azure-functions/durable/durable-task-scheduler/durable-task-scheduler)).
 - **Identity on the money path.** The workflow's managed identity gets Entra tokens with no credential to manage ([managed identities](https://learn.microsoft.com/entra/identity/managed-identities-azure-resources/overview)). Grant it the app role the payments API checks, since a managed identity can hold app roles ([app roles](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps)). The agent service's identity never gets that role.
 - **Notes in Cosmos DB.** Learn's [agent memory guidance](https://learn.microsoft.com/azure/cosmos-db/gen-ai/agentic-memories) covers partition key choices, and Learn calls `quantizedFlat` a good option when filters narrow the search to a small set of vectors ([vector search](https://learn.microsoft.com/azure/cosmos-db/vector-search)).
@@ -552,7 +554,7 @@ I look for you to raise the abstention floor on your own and tie it to an unsupp
 
 ### Staff+
 
-I look for you to treat the floor and the approval queue as staffing decisions and argue them with numbers. You name the lethal trifecta and break it with identity, so the agent can't reach payments at all. You treat memory and tool output as untrusted and scope memory by partition. You grade by end state, report pass^k, and route resolved tickets back into the eval set. You also raise what drifts in operation, such as a ranker update shifting the floor or a grader losing calibration.
+I look for you to treat the floor and the approval queue as staffing decisions and argue them with numbers. You name the lethal trifecta and break it with identity, so the agent can't reach payments at all. You treat memory and tool output as untrusted, and you scope memory to the token's customer in one data-access path rather than trusting the partition key. You grade by end state, report pass^k, and route resolved tickets back into the eval set. You also raise what drifts in operation, such as a ranker update shifting the floor or a grader losing calibration.
 
 ## Further reading
 
