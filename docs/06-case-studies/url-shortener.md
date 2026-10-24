@@ -32,7 +32,7 @@ I trimmed to create, follow, and retire because an owner needs all three before 
 1. **Every code is unique.** A code resolves to exactly one long URL, and a custom alias goes to whoever asked first. Generated codes are not sequential, so nobody can find links by counting up. Creates choose consistency. If the system can't confirm a code is free, the create fails.
 2. **Redirects are fast.** The 99th percentile stays under 100 ms, measured at the edge, through a peak of about 58,000 redirects a second.
 3. **Redirects stay up.** Redirects are 99.99% available, which allows about 52 minutes of downtime a year. They choose availability over consistency, so a link created in one region may take about a second to resolve in another. Creates can tolerate a longer outage.
-4. **Retired links stop working within five minutes.** The bound covers every cache between the visitor and the database, the browser's included.
+4. **Retired links stop working within five minutes.** The bound covers every cache between the visitor and the database, the browser's included. A region that misses the delete, such as one cut off by a partition, can keep a retired link working for about an hour after it reconnects, because requirement 3 puts redirects first (deep dive 3).
 5. **It holds 1 billion links.** It serves 100 million daily active users, each opening about 10 links a day.
 
 **Below the line**
@@ -80,7 +80,7 @@ Host: sho.rt
 
 302 Found
 Location: https://learn.microsoft.com/azure/cosmos-db/partitioning
-Cache-Control: private, max-age=300
+Cache-Control: private, max-age=240
 ```
 
 Requirement 3 is a delete, plus the optional `expiresAt` on the create. The delete returns 404 for someone else's link instead of 403, so the API never confirms which codes exist.
@@ -282,7 +282,7 @@ In a 45-minute interview I'd draw the good solution and add the in-process hot s
 This serves requirement 4. Deep dive 2 put three caches between a visitor and the store: the browser, Redis, and the in-process hot set. Each one can keep a retired link alive. The edge holds nothing, because its caching is off.
 
 :::tip
-Name the layer that holds a redirect longest. Here it is the browser, at `max-age=300`, and that number sets the five-minute bound in requirement 4.
+Add the layers up. A browser holds a 302 for its full `max-age` from the moment it arrives, even if a server sent it just before the delete landed. So the bound in requirement 4 is the servers' stale window plus the browser's `max-age`, here 60 seconds plus 240.
 :::
 
 #### Bad solution: Sweep nightly and let caches age out
@@ -306,7 +306,7 @@ flowchart LR
 
 #### Great solution: Delete through every regional cache
 
-**Approach.** Keep the good solution and make deletes active. After the link service deletes the row, it deletes the key from Redis in every region. It repeats those cache deletes a few seconds later, because a redirect in the far region may have missed Redis, read a replica the delete hadn't reached yet, and put the dead link back. The in-process hot set expires within seconds, and the browser holds the 302 for at most 300 seconds, so the worst case is five minutes.
+**Approach.** Keep the good solution and make deletes active. After the link service deletes the row, it deletes the key from Redis in every region. It repeats those cache deletes a few seconds later, because a redirect in the far region may have missed Redis, read a replica the delete hadn't reached yet, and put the dead link back. The link service retries a failed cache delete, because every server-side copy has to be gone within 60 seconds. Replica lag of about a second, the repeated delete, and the hot set's few-second TTL all fit inside that. A browser that got the 302 at the last moment holds it for its 240-second `max-age`, so the worst case is five minutes.
 
 ```mermaid
 sequenceDiagram
@@ -325,7 +325,7 @@ sequenceDiagram
   LS->>RB: DEL launch-day
 ```
 
-**Challenges.** A delete now costs a call into every region, and the link service must retry it when a region is unreachable. If a region stays cut off, its Redis keeps the dead link until the one-hour TTL. If that is unacceptable, shorten the Redis TTL to five minutes and pay for more misses.
+**Challenges.** A delete now costs a call into every region, and the bound holds only if each one lands within the 60 seconds. If the link service crashes mid-delete or a region stays cut off, that region's Redis keeps the dead link until its one-hour TTL. A Redis TTL inside the 60 seconds would cover the crash at the cost of far more misses. Nothing short of refusing redirects covers a cut-off region, because its read replica hasn't seen the delete either. Redirects chose availability in requirement 3, which is why requirement 4 names this exception.
 
 In a 45-minute interview I'd present the good solution and describe the delete fan-out in two sentences, because the replica race is a detail most interviewers save for staff candidates.
 

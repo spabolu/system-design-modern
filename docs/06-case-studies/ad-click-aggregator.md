@@ -271,18 +271,18 @@ Deduplication is only as good as its key. If impression IDs weren't signed, a bo
 
 #### Great solution: Deduplicate in the analytics store, at the last hop
 
-**Approach.** Write raw clicks, duplicates and all, into the analytics store and deduplicate there. A deduplication view keeps one row per impression ID, and every count reads that view, never the raw table. Because it is the last hop, it catches duplicates from every source, including a click whose publish timed out after the stream had already taken it, so it also landed in the fallback log. Tell the view that duplicates arrive within one day of each other, matching the age limit on impressions, so it compares new rows against one day of data instead of all history. See [idempotency and retries](../03-patterns/idempotency-and-retries.md).
+**Approach.** Write raw clicks, duplicates and all, into the analytics store and deduplicate there. A deduplication view keeps one row per impression ID, and every count reads that view, never the raw table. Because it is the last hop, it catches duplicates from every source, including a click whose publish timed out after the stream had already taken it, so it also landed in the fallback log. Tell the view that duplicates arrive within seven days of each other, matching the stream's retention, so it compares new rows against a week of data instead of all history. The one-day age limit on impressions is too short for this. It bounds when the click service accepts a click, but a consumer that falls behind or replays can redeliver that click for as long as the stream keeps it. See [idempotency and retries](../03-patterns/idempotency-and-retries.md).
 
 ```mermaid
 flowchart LR
   D1["User double-click"] --> Raw
   D2["Browser retry"] --> Raw
   D3["Pipeline redelivery"] --> Raw
-  Raw[("Raw clicks, duplicates included")] --> Dedup["Dedup view: one row per impressionId, one-day lookback"]
+  Raw[("Raw clicks, duplicates included")] --> Dedup["Dedup view: one row per impressionId, seven-day lookback"]
   Dedup --> Counts["Counts per ad per minute"]
 ```
 
-**Challenges.** It needs a store that maintains deduplication incrementally, which narrows the choice of store. The raw table holds duplicates, so anything that reads it directly, such as a fraud model, must dedupe on its own. And the one-day lookback is a promise every writer must keep. A duplicate that arrives more than a day after the original counts twice, which is why the recount inserts only missing IDs and never replays whole hours.
+**Challenges.** It needs a store that maintains deduplication incrementally, which narrows the choice of store. The raw table holds duplicates, so anything that reads it directly, such as a fraud model, must dedupe on its own. And the seven-day lookback is a promise every writer must keep. The stream can't redeliver anything older, but any other writer that adds a duplicate more than seven days after the original counts it twice, which is why the recount inserts only missing IDs and never replays whole hours.
 
 In a 45-minute interview I'd name the three sources of duplicates first, then put deduplication at the last hop and say why that spot catches all three. The cache check is worth one sentence about the click it can lose.
 
@@ -390,7 +390,7 @@ flowchart LR
 | Click stream | Azure Event Hubs | Standard, 10 throughput units (TUs) with auto-inflate on, 32 partitions, 7-day retention. |
 | Archive | Event Hubs Capture to Data Lake Storage Gen2 | Avro files per time window, ZRS. |
 | Fallback log | Azure Blob Storage | Append blobs in a separate ZRS account. |
-| Analytics store | Azure Data Explorer | Queued ingestion from Event Hubs into a `Clicks` table, with the table's batching time cut to 30 seconds. `ClicksDedup` view with `take_any(*)` by `impressionId` and a 1-day lookback. `ClicksPerMinute` view with `count()` by `adId` and `bin(clickTime, 1m)` on top of it. A `Statements` table. |
+| Analytics store | Azure Data Explorer | Queued ingestion from Event Hubs into a `Clicks` table, with the table's batching time cut to 30 seconds. `ClicksDedup` view with `take_any(*)` by `impressionId` and a 7-day lookback, matching the stream's retention. `ClicksPerMinute` view with `count()` by `adId` and `bin(clickTime, 1m)` on top of it. A `Statements` table. |
 | Query API | Azure Container Apps | Microsoft Entra ID sign-in. Maps the caller to an advertiser ID and adds it to every query. |
 | Nightly recount | Azure Container Apps jobs | Schedule trigger with a cron expression. Reads Capture files and fallback blobs, inserts missing clicks, writes statements. |
 
