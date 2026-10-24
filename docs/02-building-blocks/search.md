@@ -71,7 +71,7 @@ Production systems add business signals on top: freshness, popularity, distance,
 
 Keyword search misses paraphrase: "budget lodging by the sea" shares no terms with document 1. Vector search fixes that. An embedding model turns each document (or chunk of a long document) and each query into a vector, and the engine returns the documents whose vectors are nearest to the query's. Checking every vector is exact but slow at scale, so engines build an approximate nearest-neighbor (ANN) structure such as HNSW, a layered graph that finds near neighbors in far fewer comparisons and occasionally misses the true nearest.
 
-Hybrid search runs the keyword query and the vector query in parallel and merges the two ranked lists with RRF. Each document scores `1/(rank + k)` in each list it appears in, summed, with `k` usually 60. A document ranked 1st by keywords and 3rd by vectors scores $1/61 + 1/63 \approx 0.0323$ and beats one ranked 2nd by keywords alone ($1/62 \approx 0.0161$). RRF uses only positions, so it doesn't need BM25 scores and vector similarities to be on the same scale. A reranker model can then reorder the top few dozen results.
+Hybrid search runs the keyword query and the vector query in parallel and merges the two ranked lists with RRF. Each document scores $1/(\text{rank} + k)$ in each list it appears in, summed, with $k$ usually 60. A document ranked 1st by keywords and 3rd by vectors scores $1/61 + 1/63 \approx 0.0323$ and beats one ranked 2nd by keywords alone ($1/62 \approx 0.0161$). RRF uses only positions, so it doesn't need BM25 scores and vector similarities to be on the same scale. A reranker model can then reorder the top few dozen results.
 
 ### Keeping the index in sync
 

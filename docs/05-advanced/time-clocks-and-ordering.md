@@ -40,9 +40,9 @@ A Lamport clock is one counter per process:
 
 1. Increment the counter before each local event.
 2. Attach the counter to every message sent.
-3. On receive, set the counter to `max(local, received) + 1`.
+3. On receive, set the counter to $\max(\text{local}, \text{received}) + 1$.
 
-If $a \rightarrow b$, then `L(a) < L(b)`. The converse does not hold: a smaller number does not prove causality. Breaking ties by process ID yields a total order that every process agrees on.
+If $a \rightarrow b$, then $L(a) < L(b)$. The converse does not hold: a smaller number does not prove causality. Breaking ties by process ID yields a total order that every process agrees on.
 
 ### Vector clocks
 

@@ -30,9 +30,9 @@ CRDTs replace ad hoc merging with data types whose merge is proven to converge. 
 
 Each replica holds a full state and periodically sends it to peers. The receiver merges with a function that is:
 
-- **Commutative**: `merge(a, b) = merge(b, a)`, so delivery order does not matter.
-- **Associative**: grouping does not matter, so gossip through any topology works.
-- **Idempotent**: `merge(a, a) = a`, so duplicate delivery is harmless.
+- **Commutative**: $\operatorname{merge}(a, b) = \operatorname{merge}(b, a)$, so delivery order does not matter.
+- **Associative**: $\operatorname{merge}(\operatorname{merge}(a, b), c) = \operatorname{merge}(a, \operatorname{merge}(b, c))$, so gossip through any topology works.
+- **Idempotent**: $\operatorname{merge}(a, a) = a$, so duplicate delivery is harmless.
 
 Local updates may only move the state "upward" in the order the merge defines. The **G-Counter** (grow-only counter) is the standard example. Each replica keeps a map from replica ID to that replica's count, increments only its own entry, and merges by taking the element-wise maximum. The value is the sum.
 

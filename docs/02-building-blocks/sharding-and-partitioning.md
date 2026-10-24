@@ -39,7 +39,7 @@ flowchart LR
 ```
 
 - **Range.** Each shard owns a contiguous key range (IDs 1 to 1M, 1M to 2M; or dates). Range scans stay on one shard, but sequential keys send every new write to the last shard, which becomes a hot spot.
-- **Hash.** Hash the key and map the hash to a shard. Data spreads evenly and the router needs no state, but range queries hit every shard. With plain `hash mod N`, changing N moves almost every key; Learn's sharding pattern notes that rebalancing is difficult without [consistent hashing](./consistent-hashing.md).
+- **Hash.** Hash the key and map the hash to a shard. Data spreads evenly and the router needs no state, but range queries hit every shard. With plain $\operatorname{hash} \bmod N$, changing $N$ moves almost every key; Learn's sharding pattern notes that rebalancing is difficult without [consistent hashing](./consistent-hashing.md).
 - **Directory (lookup).** A map records which shard holds each key or tenant. You get full control (move one big tenant to its own shard) at the cost of a lookup on every request and a map that must be highly available and cached.
 - **Geographic.** Shard by region or country to keep data near users and meet data residency rules.
 

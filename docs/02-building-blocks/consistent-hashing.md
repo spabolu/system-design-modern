@@ -7,7 +7,7 @@ sidebar_position: 9
 ## TL;DR
 
 - Consistent hashing maps keys and nodes onto the same circular hash space (the ring). Each key belongs to the first node clockwise from its position.
-- Adding or removing a node only moves the keys in one arc of the ring, about $1/N$ of the data. With `hash(key) mod N`, changing $N$ moves almost every key.
+- Adding or removing a node only moves the keys in one arc of the ring, about $1/N$ of the data. With $\operatorname{hash}(\text{key}) \bmod N$, changing $N$ moves almost every key.
 - With one position per node, arcs are uneven and a failed node dumps its whole load on one neighbor. Virtual nodes (many positions per physical node) fix both.
 - Store replicas on the next distinct nodes clockwise to get replication for free from the same structure.
 - Alternatives: fixed hash slots (Redis Cluster), rendezvous hashing, and jump hashing solve the same problem with different trade-offs.
@@ -15,7 +15,7 @@ sidebar_position: 9
 
 ## Why it matters
 
-Any time you spread keys over a changing set of servers (cache nodes, database shards, chat servers holding WebSocket connections), you need a key-to-server function that survives membership changes. The obvious one, `hash(key) mod N`, fails badly. Going from 10 to 11 servers changes the result for about 10 of every 11 keys. For a cache, that's a sudden 90% miss rate and a [stampede](./caching.md) on the database. For a sharded store, it's a migration of almost all data.
+Any time you spread keys over a changing set of servers (cache nodes, database shards, chat servers holding WebSocket connections), you need a key-to-server function that survives membership changes. The obvious one, $\operatorname{hash}(\text{key}) \bmod N$, fails badly. Going from 10 to 11 servers changes the result for about 10 of every 11 keys. For a cache, that's a sudden 90% miss rate and a [stampede](./caching.md) on the database. For a sharded store, it's a migration of almost all data.
 
 Learn's sharding pattern says it directly: with plain hashing, adding or removing a shard reassigns most keys and triggers large-scale data migration, and consistent hashing arranges the hash space so only a small fraction of keys move. It's a standard interview topic because it connects [sharding](./sharding-and-partitioning.md), caching, and [load balancing](./load-balancing.md) with one idea.
 
@@ -76,7 +76,7 @@ Consistent hashing balances keys, not traffic. One viral key still lands on one 
 
 | Approach | Keys moved when $N$ changes | Balance | Lookup cost | Notes |
 | --- | --- | --- | --- | --- |
-| `hash mod N` | Almost all | Even | $O(1)$ | Fine only if $N$ never changes |
+| $\operatorname{hash} \bmod N$ | Almost all | Even | $O(1)$ | Fine only if $N$ never changes |
 | Ring, one position per node | About $1/N$ | Uneven | $O(\log N)$ | Failure overloads one neighbor |
 | Ring with virtual nodes | About $1/N$ | Close to even | $O(\log V)$ | The common choice |
 | Fixed hash slots | Only the slots you move | Even if slots are balanced | $O(1)$ | Needs a slot map and a rebalance step |
