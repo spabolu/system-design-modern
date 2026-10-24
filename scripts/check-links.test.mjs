@@ -60,9 +60,16 @@ test('GET requests follow redirects and classify HTTP and connection failures', 
     server.closeAllConnections();
     await new Promise((done) => server.close(done));
   }
-  const refused = await checkLink(`${base}/closed`);
+
+  // A port fetch never connected to, so no pooled keep-alive socket turns the refusal into a reset.
+  const unused = createServer();
+  unused.listen(0, '127.0.0.1');
+  await once(unused, 'listening');
+  const closedBase = `http://127.0.0.1:${unused.address().port}`;
+  await new Promise((done) => unused.close(done));
+  const refused = await checkLink(`${closedBase}/closed`);
   assert.equal(refused.kind, 'failure');
-  assert.match(refused.detail, /^ECONN(?:REFUSED|RESET)$/);
+  assert.equal(refused.detail, 'ECONNREFUSED');
 });
 
 test('DNS errors and timeouts are failures', async () => {
