@@ -311,7 +311,7 @@ This serves requirement 2. Two matching workers serving riders a block apart can
 
 #### Great solution: An expiring offer lock, with the commit guarded on the driver record
 
-**Approach.** Split "who may be offered this driver right now" from "who got this driver". For the first, take a lock in the same Redis as the geo index with `SET lock:driver:{id} {rideId} NX PX 10000`. It is atomic, fast, and expires on its own, so a crashed worker never strands a driver. For the second, the accept does a conditional write on the driver record in the durable store, from `available` to `on_trip`, guarded by the record's version. Then it moves the ride from `requested` to `matched` with the same kind of guard, so a late accept or a rider's cancel can't also win. Write the driver first, because the driver is the scarce resource. If the ride write then fails, put the driver back.
+**Approach.** Split "who may be offered this driver right now" from "who got this driver". For the first, take a lock in the same Redis as the geo index with `SET lock:driver:{id} {rideId} NX PX 10000`. It is atomic, fast, and expires on its own, so a crashed worker never strands a driver. For the second, the accept does a conditional write on the driver record in the durable store, from `available` to `on_trip`, guarded by the record's version. Then it moves the ride from `requested` to `matched` with the same kind of guard, so a late accept or a rider's cancel can't also win. Write the driver first, because the driver is the scarce resource, and record this `rideId` on it. If the ride write then fails, put the driver back with a write that applies only while the driver record still names this ride, so it can never free the driver from a later one. Run both writes and the undo as steps of the ride's durable workflow from deep dive 3, not inline in the accept handler, so a crash between them resumes at the next step instead of leaving the driver stuck in `on_trip`.
 
 ```mermaid
 flowchart LR
@@ -357,16 +357,16 @@ flowchart LR
 
 #### Great solution: A durable orchestration with timers
 
-**Approach.** Write the whole matching loop as one function and run it on a durable execution framework. The framework records each step. If the worker dies, another one replays the history and resumes at the same `await`, with the timer still counting. The accept endpoint raises an `accepted` event to the ride's orchestration. See [long-running tasks](../03-patterns/long-running-tasks.md).
+**Approach.** Write the whole matching loop as one function and run it on a durable execution framework. The framework records each step. If the worker dies, another one replays the history and resumes at the same `await`, with the timer still counting. The accept endpoint raises an `accepted` event to the ride's orchestration and answers once the orchestration reports the outcome. The orchestration runs deep dive 2's two writes and the undo as activities, so a crash between them resumes at the next one. It picks the timer or the event once, so an accept that loses to the timer writes nothing and gets `409`. The ride service fixes the deadline at 60 seconds after the request when it admits it, so time spent waiting for a worker counts, and each offer's wait shrinks to fit what is left. See [long-running tasks](../03-patterns/long-running-tasks.md).
 
 ```text
-match(ride):
-  deadline = now() + 60 s            # now() comes from the orchestration context
+match(ride, deadline):                 # deadline was fixed before the orchestration started
   for driver in rank(find_nearby(ride.pickup)):
-    if not try_lock_and_offer(driver, ride): continue
-    winner = await first_of(event("accepted", driver), timer(10 s))
-    if winner is the event: notify_matched(ride, driver); return
-    if now() > deadline: break
+    wait = min(10 s, deadline - now())   # now() comes from the orchestration context
+    if wait <= 0: break
+    if not try_lock_and_offer(driver, ride, wait): continue   # lock and offer expire after wait
+    winner = await first_of(event("accepted", driver), timer(wait))
+    if winner is the event and await commit(ride, driver): notify_matched(ride, driver); return
   notify_no_drivers(ride)
 ```
 
@@ -392,7 +392,7 @@ This serves requirement 3. The concert ends, and 100,000 people open the app wit
 
 #### Great solution: A queue per cell, drained at the pace of supply
 
-**Approach.** Tag each message with its cell, and let one consumer own each cell's stream in arrival order. The consumer starts a matching orchestration only when the cell has free drivers, so the loops in flight track supply rather than demand. As nearby supply runs out, it widens the search radius into neighboring cells. Riders still waiting get their position in line and an estimated wait over the WebSocket, and anyone who cancels is skipped. The consumer only starts orchestrations and does no matching itself, so one reader per cell is not a bottleneck at 170 requests a second.
+**Approach.** Tag each message with its cell, and let one consumer own each cell's stream in arrival order. The consumer starts a matching orchestration only when the cell has free drivers, so the loops in flight track supply rather than demand. As nearby supply runs out, it widens the search radius into neighboring cells. Riders still waiting hear their position in line and an estimated wait over the WebSocket as soon as they are queued, which is how requirement 1's "or say so" holds for them. A rider who reaches the front gets a fresh 60-second deadline for the match, since they already know to wait. Anyone who cancels is skipped. The consumer only starts orchestrations and does no matching itself, so one reader per cell is not a bottleneck at 170 requests a second.
 
 ```mermaid
 flowchart LR

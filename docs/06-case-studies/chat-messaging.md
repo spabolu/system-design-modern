@@ -66,11 +66,11 @@ The WebSocket carries five commands:
 client -> server  sendMessage { chatId, clientMsgId, body, attachments }
 server -> client  ack         { clientMsgId, seq }
 server -> client  newMessage  { chatId, seq, senderId, body, attachments }
-client -> server  delivered   { chatId, upToSeq }
+client -> server  delivered   { chatId, seqs }
 client -> server  sync        { }
 ```
 
-`ack` tells the sender the message is stored, which is when the app shows "sent". `delivered` tells the server a device has the message, and `sync` asks for everything waiting for this device. The `clientMsgId` is a UUID the app generates before sending. A device that loses its connection before seeing `ack` resends with the same ID, and the server answers with the original `seq` instead of storing a second copy. See [idempotency and retries](../03-patterns/idempotency-and-retries.md).
+`ack` tells the sender the message is stored, which is when the app shows "sent". `delivered` lists the messages a device has stored, and `sync` asks for everything waiting for this device. The `clientMsgId` is a UUID the app generates before sending. A device that loses its connection before seeing `ack` resends with the same ID, and the server answers with the original `seq` instead of storing a second copy. The app resends for at most 23 hours, inside the day the server remembers the ID (deep dive 2), then marks the message failed. See [idempotency and retries](../03-patterns/idempotency-and-retries.md).
 
 Creating a chat and uploading media are ordinary HTTP calls. A chat is created once, and media bytes don't belong on the socket.
 
@@ -155,7 +155,7 @@ flowchart LR
 
 1. Before it acknowledges the sender, the chat service writes an inbox entry for each recipient, holding `userId`, `chatId`, and `messageId`. Each entry gets a 30-day TTL.
 2. It pushes `newMessage` to recipients who are online.
-3. A recipient's app stores the message, shows it, and sends `delivered`. The service deletes that recipient's inbox entries for the chat.
+3. A recipient's app stores the message, shows it, and sends `delivered`. The service deletes the recipient's inbox entries that `delivered` names.
 4. A recipient who was offline reconnects and sends `sync`. The service reads that user's inbox partition, sends everything in it, and deletes entries as `delivered` comes back.
 
 The inbox is the guarantee, and the push is an optimization that is allowed to fail. If a push goes to a dead gateway, the entry is still waiting at the next `sync`. I'd key the inbox by user for now and flag that a second device breaks it, which deep dive 2 fixes.
@@ -247,7 +247,7 @@ This serves requirements 2 and 4. A message can be lost in three places. It can 
 
 #### Great solution: An inbox entry per device that carries the message
 
-**Approach.** Write one inbox entry per recipient device, including the sender's other devices, partitioned by device. Each entry carries the whole message, about 300 bytes, so `sync` is a single-partition read with no second lookup. A device acknowledges a message only after writing it to local storage, and that acknowledgement deletes only that device's entry. The chat partition no longer needs the body. It keeps a small record of each message's `clientMsgId` and `seq` for a day to catch resends, so a delivered message leaves the server when its last device acknowledges it.
+**Approach.** Write one inbox entry per recipient device, including the sender's other devices, partitioned by device. Each entry carries the whole message, about 300 bytes, so `sync` is a single-partition read with no second lookup. A device acknowledges a message only after writing it to local storage, and that acknowledgement replaces only that device's entry with a marker that has no body and expires in a day. `sync` skips markers. The chat partition no longer needs the body. It keeps a small record of each message's `clientMsgId` and `seq` for a day to catch resends, which outlasts the app's 23 hours of resending, so a delivered message leaves the server when its last device acknowledges it.
 
 ```mermaid
 sequenceDiagram
@@ -262,11 +262,11 @@ sequenceDiagram
   CS-->>S: ack with seq
   CS-->>R: newMessage
   R->>R: write to local storage
-  R->>CS: delivered upToSeq
-  CS->>IB: delete this device's entries
+  R->>CS: delivered with seq
+  CS->>IB: replace this device's entry with a marker
 ```
 
-**Challenges.** Writes multiply by devices. A message to a 100-person group writes about 150 inbox entries before the sender sees "sent", and inserting each costs about 5.5 RU in Cosmos DB, so 350,000 deliveries a second average about 1.9 million RU/s and peak near 4 million. Deletes on acknowledgement add more on top. If the service crashes after recording the message but before every entry exists, the sender never got `ack` and resends. The resend finds the existing record and rewrites the entries from its body, and because each entry's ID is the chat ID plus `seq`, the rewrite is an idempotent upsert.
+**Challenges.** Writes multiply by devices. A message to a 100-person group writes about 150 inbox entries before the sender sees "sent", and inserting each costs about 5.5 RU in Cosmos DB, so 350,000 deliveries a second average about 1.9 million RU/s and peak near 4 million. Markers on acknowledgement add more on top. If the service crashes after recording the message but before every entry exists, the sender never got `ack` and resends. The resend finds the existing record and fills in the entries from its body. Each entry's ID is the chat ID plus `seq`, and the resend uses create, not upsert, so an entry that still exists or a device's marker refuses it with `409`. A device that already acknowledged never gets the message again, because its marker lives a day and resends stop after 23 hours.
 
 :::tip
 Say "the inbox is the source of truth and the push is an optimization" out loud. It tells the interviewer you know where the guarantee lives.
@@ -306,7 +306,7 @@ sequenceDiagram
   DB-->>CS: committed, seq 43
 ```
 
-**Challenges.** Every message now costs a read, a replace, and a create in one partition. A replace costs twice an insert, so the write side is about 16.5 RU a message before any inbox entries. A chat has at most 100 people sending a few messages a second, so one counter per chat is never the bottleneck, and `412` retries stay rare. Gaps are normal, because a push can overtake an earlier one. Most fill on the next `sync`. A gap `sync` can't fill belongs to a sender whose app crashed and never resent. That sender never saw "sent", so the app can skip the number.
+**Challenges.** Every message now costs a read, a replace, and a create in one partition. A replace costs twice an insert, so the write side is about 16.5 RU a message before any inbox entries. A chat has at most 100 people sending a few messages a second, so one counter per chat is never the bottleneck, and `412` retries stay rare. Gaps are normal, because a push can overtake an earlier one. Most fill on the next `sync`, but an empty `sync` doesn't prove 42 is gone, since 42 can be stored while its inbox entries are still being written. So the app acknowledges only the `seq` values it has, shows 43, and slots 42 in above it when a later push or `sync` brings it. A gap that never fills belongs to a sender whose app crashed and stopped resending. That sender never saw "sent".
 
 In a 45-minute interview I'd rule out both clocks in one breath each and spend the time on the batch and the gap fill, because "how do you handle a gap?" is the follow-up.
 
@@ -362,7 +362,7 @@ flowchart LR
 | Gateway clusters | Azure Web PubSub | Premium_P2, which scales one instance from 100 to 1,000 units at 1,000 concurrent connections per unit, so about 1 million connections per instance. Users are hashed across instances. Premium adds zone redundancy and geo-replication. |
 | Chat service | Azure Container Apps | Stateless, zone-redundant environment. Receives Web PubSub upstream events and calls the Web PubSub REST API to send to users. |
 | Chats and sequence records | Azure Cosmos DB for NoSQL | `chats` container partitioned on `/chatId`, holding the chat item and a one-day record per message. |
-| Inboxes | Azure Cosmos DB for NoSQL | `inbox` container on the hierarchical key `/userId`, `/deviceId`, so each device drains one logical partition. Default TTL 2,592,000 seconds, which is 30 days. |
+| Inboxes | Azure Cosmos DB for NoSQL | `inbox` container on the hierarchical key `/userId`, `/deviceId`, so each device drains one logical partition. Default TTL 2,592,000 seconds, which is 30 days. An acknowledgement marker sets its own TTL of 86,400 seconds, one day. |
 | Presence and last seen | Azure Managed Redis | Balanced tier, keys with TTL, high availability on. |
 | Offline push | Azure Notification Hubs | Standard, which sends through the iOS and Android push services. |
 | Media | Azure Blob Storage | Upload and download with a user delegation SAS scoped to one blob for a few minutes. A lifecycle rule deletes attachments after 30 days. |
@@ -373,8 +373,8 @@ flowchart LR
 - **Web PubSub billing.** Only outbound traffic is billed, counted in 2 KB increments, and upstream events to the chat service count as outbound ([billing model](https://learn.microsoft.com/azure/azure-web-pubsub/concept-billing-model)). A day here has about 20 billion upstream sends, 20 billion acks, 30 billion deliveries, and up to 30 billion upstream `delivered` events, roughly 100 billion billable messages. Each unit includes 1 million messages a day, so 300,000 units include 300 billion.
 - **Reliable subprotocol.** Web PubSub's reliable subprotocols give each client a connection ID and a reconnection token. A client that drops for less than about a minute recovers the same session without losing messages. After that, recovery reports possible loss and the client starts over ([reliable clients](https://learn.microsoft.com/azure/azure-web-pubsub/howto-develop-reliable-clients)). The inbox covers longer gaps.
 - **Sequence numbers with a transactional batch.** Batches are ACID within one logical partition, up to 100 operations ([transactional batch](https://learn.microsoft.com/azure/cosmos-db/transactional-batch)). A lost ETag race returns `412` and a duplicate create returns `409` ([status codes](https://learn.microsoft.com/rest/api/cosmos-db/http-status-codes-for-cosmosdb)).
-- **Request units.** A replace costs twice an insert, and an unindexed 1 KB insert costs about 5.5 RU ([request cost](https://learn.microsoft.com/azure/cosmos-db/optimize-cost-reads-writes)). At 500,000 messages a second, the sequence batch costs about 8 million RU/s and inbox inserts about 4 million, roughly 12 million RU/s at peak before deletes. That is far past the default maximum of 1,000,000 RU/s per container, which a support ticket raises ([service quotas](https://learn.microsoft.com/azure/cosmos-db/concepts-limits)). Splitting users across home-region accounts divides it further.
-- **TTL instead of a cleanup job.** Expired items stop showing in queries at once, and the background delete uses spare RUs ([time to live](https://learn.microsoft.com/azure/cosmos-db/time-to-live)). Explicit deletes on acknowledgement remove most entries far sooner.
+- **Request units.** A replace costs twice an insert, and an unindexed 1 KB insert costs about 5.5 RU ([request cost](https://learn.microsoft.com/azure/cosmos-db/optimize-cost-reads-writes)). At 500,000 messages a second, the sequence batch costs about 8 million RU/s and inbox inserts about 4 million, roughly 12 million RU/s at peak before acknowledgements. That is far past the default maximum of 1,000,000 RU/s per container, which a support ticket raises ([service quotas](https://learn.microsoft.com/azure/cosmos-db/concepts-limits)). Splitting users across home-region accounts divides it further.
+- **TTL instead of a cleanup job.** Expired items stop showing in queries at once, and the background delete uses spare RUs ([time to live](https://learn.microsoft.com/azure/cosmos-db/time-to-live)). Acknowledgement strips the body from most entries far sooner, and each marker it leaves expires a day later.
 - **Notification Hubs Standard.** Microsoft recommends Standard for medium and large production apps, and it adds per-message telemetry for debugging failed pushes ([FAQ](https://learn.microsoft.com/azure/notification-hubs/notification-hubs-push-notification-faq)). Standard includes 10 million pushes a month per subscription, so nearly every push here is beyond the included volume. Price that before you commit.
 - **User delegation SAS.** It is signed with Microsoft Entra credentials, not the account key, which is why Microsoft recommends it ([SAS overview](https://learn.microsoft.com/azure/storage/common/storage-sas-overview)).
 
