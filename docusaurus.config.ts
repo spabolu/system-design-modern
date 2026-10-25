@@ -72,6 +72,9 @@ const config: Config = {
           onInlineAuthors: 'throw',
           onUntruncatedBlogPosts: 'throw',
         },
+        sitemap: {
+          ignorePatterns: ['/search', '/notes/tags/**'],
+        },
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -80,6 +83,7 @@ const config: Config = {
   ],
   themeConfig: {
     image: 'img/social-card.png',
+    metadata: [{property: 'og:site_name', content: 'Modern System Design'}],
     colorMode: {respectPrefersColorScheme: true},
     navbar: {
       title: 'Modern System Design',
