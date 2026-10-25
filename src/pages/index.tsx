@@ -1,5 +1,6 @@
 import type {ReactNode} from 'react';
 import clsx from 'clsx';
+import Head from '@docusaurus/Head';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
@@ -30,9 +31,20 @@ function HomepageHeader() {
 }
 
 export default function Home(): ReactNode {
+  const {siteConfig} = useDocusaurusContext();
   return (
     <Layout
       description="A personal system design curriculum, from fundamentals to advanced systems, with Azure as the only cloud.">
+      <Head>
+        <script type="application/ld+json">
+          {JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'WebSite',
+            name: siteConfig.title,
+            url: `${siteConfig.url}${siteConfig.baseUrl}`,
+          })}
+        </script>
+      </Head>
       <HomepageHeader />
       <main>
         <CurriculumLevels />
