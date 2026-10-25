@@ -5,8 +5,10 @@ import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 import {version} from './package.json';
 
+const siteTitle = 'Modern System Design';
+
 const config: Config = {
-  title: 'Modern System Design',
+  title: siteTitle,
   tagline: 'From fundamentals to advanced, architected on Azure.',
   favicon: 'img/favicon.ico',
   url: 'https://red-meadow-0c7d14a0f.4.azurestaticapps.net',
@@ -83,10 +85,10 @@ const config: Config = {
   ],
   themeConfig: {
     image: 'img/social-card.png',
-    metadata: [{property: 'og:site_name', content: 'Modern System Design'}],
+    metadata: [{property: 'og:site_name', content: siteTitle}],
     colorMode: {respectPrefersColorScheme: true},
     navbar: {
-      title: 'Modern System Design',
+      title: siteTitle,
       logo: {
         alt: 'Stacked system components',
         src: 'img/logo.svg',
