@@ -11,6 +11,7 @@ const config: Config = {
   favicon: 'img/favicon.ico',
   url: 'https://red-meadow-0c7d14a0f.4.azurestaticapps.net',
   baseUrl: '/',
+  trailingSlash: false,
   future: {v4: true},
   onBrokenLinks: 'throw',
   onBrokenAnchors: 'throw',
@@ -78,6 +79,7 @@ const config: Config = {
     ],
   ],
   themeConfig: {
+    image: 'img/social-card.png',
     colorMode: {respectPrefersColorScheme: true},
     navbar: {
       title: 'Modern System Design',
