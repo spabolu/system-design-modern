@@ -1,7 +1,7 @@
 ---
 title: "Cost optimization"
 description: "Reservations vs savings plans, autoscale and scale to zero, Spot VMs, blob access tiers, and Cost Management budgets and Advisor: how to match Azure pricing models to each part of a workload."
-sidebar_position: 9
+sidebar_position: 10
 ---
 
 ## TL;DR

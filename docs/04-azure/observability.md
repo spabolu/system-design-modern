@@ -1,7 +1,7 @@
 ---
 title: "Observability"
 description: "Azure Monitor, Log Analytics, Application Insights with OpenTelemetry, managed Prometheus, and alerts: where each signal lands, how you query it, and what drives the bill."
-sidebar_position: 8
+sidebar_position: 9
 ---
 
 ## TL;DR
