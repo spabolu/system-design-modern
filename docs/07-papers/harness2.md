@@ -176,7 +176,7 @@ Lean toward on-demand components, as the paper does. Its Figure 9 case lifted a 
 
 The library is the cheapest part to adopt. Store each adopted harness tree with an `EXPERIENCE.md` naming the situation, the lesson, and the runs that support it, and index the entries so the next editor can search "reconcile budgets across files".
 
-Apply the admission rule strictly. If the candidate with a new skill finished and the one without it didn't, that is evidence. If the selector liked one output, it isn't. Treat entries as [untrusted input](../05-advanced/production-ai-agents.md#memory-tiers-and-memory-as-untrusted-input) and recheck their facts against the current task. Keep one library per domain. A JobBench library still lifted WorkBuddy-Bench by 0.5 to 2.9 points, but this page's advice is to rank same-domain entries first.
+Apply the admission rule strictly. If the candidate with a new skill finished and the one without it didn't, that is evidence. If the selector liked one output, it isn't. Treat entries as [untrusted input](../05-advanced/production-ai-agents.md#memory-tiers-and-memory-as-untrusted-input) and recheck their facts against the current task. Keep one library per domain. A JobBench library still lifted WorkBuddy-Bench by 0.5 to 2.9 points over one-step refinement without it, but this page's advice is to rank same-domain entries first.
 
 **What to measure.** The share of edited files that show library provenance (22% to 47% in Appendix E.2), the gain from library-only edits with no probes, and a leave-one-out check like the paper's, which found +1.9 on WorkBuddy-Bench and +1.7 on JobBench.
 
@@ -211,7 +211,7 @@ The paper ran on its authors' own infrastructure. These mappings are this page's
 
 ## Interview tips
 
-**Bring it up when asked how the agent improves.** "I'd freeze the model and improve the harness. On a hard task I'd run it once, have two editors propose an invariant edit and a domain edit, run both, and compose, with keeping the old harness as a valid outcome. Lessons the runs support go into a searchable library. Harness² got up to 11.5 points from one step, at up to roughly 6× to 8× the tokens, so I'd route only hard tasks there." That names the mechanism, the evidence, and the cost.
+**Bring it up when asked how the agent improves.** "I'd freeze the model and improve the harness. On a hard task I'd run it once, have two editors propose an invariant edit and a domain edit, run both, and compose, with keeping the old harness as a valid outcome. Lessons the runs support go into a searchable library. Harness² got up to 11.5 points from one step, at roughly 6× to 8× the tokens, so I'd route only hard tasks there." That names the mechanism, the evidence, and the cost.
 
 **Traps to avoid.**
 
