@@ -45,7 +45,7 @@ A subagent is the only component with its own inference context. A plugin enforc
 A step has three stages, Propose, Probe, and Compose.
 
 ```mermaid
-flowchart LR
+flowchart TB
   T["Task"] --> R["Reference run with the current harness"]
   R --> INV["Invariant editor (planning, tools, context, delegation)"]
   R --> D["Domain editor (knowledge, procedures, constraints)"]
@@ -71,7 +71,7 @@ $$
 (\mathcal{H}', e', \xi) = \Phi(q_t, \mathcal{H}, \mathcal{E}, \mathcal{R}_t)
 $$
 
-where $e = (\tau, y)$ is a run's trajectory and deliverable, $\mathcal{E}$ is what this task has produced so far, $\xi$ records the step, and $\mathcal{R}_t$ is the improvement harness, meaning the stage instructions, decision rule, and library. At $k = 1$ the step uses four executor runs (one reference, two probes, one successor) and four editor sessions (two editors, one composer, one reflector). The paper describes the stages, and the counts follow from them.
+where $e = (\tau, y)$ is a run's trajectory and deliverable, $\mathcal{E}$ is what this task has produced so far, $\xi$ records the step, and $\mathcal{R}_t$ is the improvement harness, meaning the stage instructions, decision rule, and library, which stays fixed for the whole task. At $k = 1$ the step uses four executor runs (one reference, two probes, one successor) and three improver sessions (two editors, one composer). One reflector session follows after the task. The paper describes the stages, and the counts follow from them.
 
 ### Spending more budget
 
@@ -81,10 +81,12 @@ The budget $k$ sets how many steps run.
 | --- | --- | --- |
 | Shape | $k$ steps side by side, then one shared composition pool | $k$ steps in a chain |
 | Borrowed from | Recursive self-aggregation (RSA) | Self-Refine |
-| Executor runs at $k = 5$ | 20 (5 references, 10 probes, 5 successors), by this page's count | Not stated precisely by the paper |
+| Executor runs at $k = 5$, by this page's count | 20 (5 references, 10 probes, 5 successors) | 20 (5 base runs, then 2 probes and 1 successor per step) |
 | Latency | About one step deep | About $k$ steps deep |
 
-In parallel recursion, each of the $k$ composers sees the whole pool and writes its own harness. When more than one deliverable exists, a selector compares them blind. It checks delivery, then conformance to the request, fidelity to sources, internal consistency, operational fitness, and finish. It picks one and never writes content.
+In parallel recursion, each of the $k$ composers sees the whole pool and writes its own harness.
+
+For $k > 1$, in either form, a selector compares the deliverables blind. It checks delivery, then conformance to the request, fidelity to sources, internal consistency, operational fitness, and finish. It picks one and never writes content.
 
 ### Remembering across tasks
 
@@ -112,7 +114,7 @@ The next task still starts from $\mathcal{H}_0$ and reuses entries only when an 
 
 ### What the experiments show
 
-The executors were GLM-5 and Gemini 3.5 Flash, each under the OpenCode and Codex harnesses. Claude Opus 4.8 ran every editor, composer, selector, and reflector session. Runs were capped at 200 model turns and 3,600 seconds, except on WorkBuddy-Bench, which used its container timeout. A guard refused any working directory that held a grader verdict, rubric, or score. Results are means over 3 task streams.
+The executors were GLM-5 and Gemini 3.5 Flash, each under the OpenCode and Codex harnesses. Claude Opus 4.8 was the default editor and the selector (Appendix D.2). Runs were capped at 200 model turns and 3,600 seconds, with WorkBuddy-Bench using its container timeout (twice the benchmark default) instead of the time cap. A guard refused any working directory that held a grader verdict, rubric, or score. Results are means over 3 task streams.
 
 - **One step.** Gains reached +11.5 on WorkBuddy-Bench (GLM-5 under OpenCode, 64.2 to 75.7), +4.5 on JobBench (Gemini under OpenCode, 31.5 to 36.0), and +11.8 percentage points of partial pass rate on Harvey's Legal Agent Benchmark (GLM-5 under OpenCode, 59.6 to 71.4). Harness Scaling fell below base in 7 of 12 benchmark and configuration pairs.
 - **More budget.** Parallel recursion at $k = 5$ added up to 3.9 points on WorkBuddy-Bench, 4.2 on JobBench, and 6.7 percentage points on the legal benchmark over $k = 1$. Gemini under OpenCode went from 72.4 at base to 77.5 at $k = 1$ and 80.8 at $k = 5$ on WorkBuddy-Bench, against 76.4 for Meta-Harness.
@@ -128,7 +130,7 @@ The executors were GLM-5 and Gemini 3.5 Flash, each under the OpenCode and Codex
 | Split invariant and domain editors | Distinct candidates, worth 2.9 to 3.7 points in the ablation | Two editor sessions instead of one |
 | Compose instead of pick | Keeps the good parts of both, worth 1.6 to 1.9 points | A composer session and a successor run |
 | Allow KEEP_BASE | A bad step can leave the harness alone | Spent compute with no change |
-| Parallel over sequential | Lower latency at the same budget | No compute saving, plus a selector |
+| Parallel over sequential | Lower latency at the same budget | No compute saving |
 | Keep a library | Better first edits, carry-over across tasks | Storage, an index, and a new place for bad text to live |
 
 **Compute is the main cost.** Figure 6 counts every token before the deliverable, improvement work included. Read off its log-scale axes, base Gemini under OpenCode used about 4.5 million tokens per JobBench task, one step about 27 million, $k = 5$ about 135 million, and Meta-Harness about 240 million for less gain. These are approximate chart readings, not printed values.
@@ -139,7 +141,7 @@ The executors were GLM-5 and Gemini 3.5 Flash, each under the OpenCode and Codex
 
 **What the paper doesn't show.** No production deployment, no wall-clock latency numbers, no tasks with irreversible side effects, and no pruning or merging of the library, which Appendix G lists as future work.
 
-**Where the code differs.** The README says "executor network access is unrestricted, and Codex runs with its sandbox disabled", and advises restricting the network so the executor can't look up answers. It and the project page say "general" for invariant candidates. Their numbers match the paper.
+**Where the code differs.** The README says "executor network access is unrestricted, and Codex runs with its sandbox disabled", and advises restricting the network so the executor can't look up answers. The README calls invariant candidates "general". Their numbers match the paper.
 
 ## Applied use cases
 
@@ -150,11 +152,11 @@ The prompt is "design an agent that handles open-ended analyst requests and gets
 Size it with the [back-of-the-envelope](../01-fundamentals/back-of-the-envelope.md) method. Token figures are approximate readings of Figure 6 for JobBench. The volume and price are assumptions.
 
 - **Load.** 1,000 tasks per day, with 10% routed through improvement.
-- **Runs.** A plain task is 1 executor run. One step is 4 runs and 4 editor sessions. Parallel $k = 5$ is 20 runs and 17 sessions (10 editors, 5 composers, a selector, and a reflector).
+- **Runs.** A plain task is 1 executor run. One step is 4 runs and 4 improver sessions, the reflector included. Parallel $k = 5$ is 20 runs and 17 sessions (10 editors, 5 composers, a selector, and a reflector).
 - **Tokens.** 900 plain tasks at about 4.5 million tokens is about 4.1 billion per day. 100 tasks at $k = 1$ add about 2.7 billion, and at $k = 5$ about 13.5 billion, which roughly quadruples the day.
 - **Price.** At an assumed \$2 per million tokens, plain work is about \$8,100 per day, $k = 1$ adds about \$5,400, and $k = 5$ adds about \$27,000.
 - **Latency.** With a 3,600-second cap, one step is up to 3 serial executor rounds (reference, probes, successor) plus 2 editor rounds (editors, composer). Parallel $k = 5$ adds only the selector. Promise hours, not seconds.
-- **Concurrency.** The probe round at $k = 5$ needs 10 sandboxes per task, so 20 improved tasks in flight need 200.
+- **Concurrency.** The probe round at $k = 5$ needs 10 sandboxes per task, so an assumed 20 improved tasks in flight need 200.
 
 **What to measure.** Reviewer-scored quality on a sample of deliverables, the KEEP_BASE rate, tokens and wall-clock time per task at p50 and p95, and the tool-error rate before and after a step.
 
@@ -174,9 +176,9 @@ Lean toward on-demand components, as the paper does. Its Figure 9 case lifted a 
 
 The library is the cheapest part to adopt. Store each adopted harness tree with an `EXPERIENCE.md` naming the situation, the lesson, and the runs that support it, and index the entries so the next editor can search "reconcile budgets across files".
 
-Apply the admission rule strictly. If the candidate with a new skill finished and the one without it didn't, that is evidence. If the selector liked one output, it isn't. Treat entries as [untrusted input](../05-advanced/production-ai-agents.md#memory-tiers-and-memory-as-untrusted-input) and recheck their facts against the current task. Keep one library per domain. A JobBench library added only 0.6 to 2.9 points on WorkBuddy-Bench, so rank same-domain entries first.
+Apply the admission rule strictly. If the candidate with a new skill finished and the one without it didn't, that is evidence. If the selector liked one output, it isn't. Treat entries as [untrusted input](../05-advanced/production-ai-agents.md#memory-tiers-and-memory-as-untrusted-input) and recheck their facts against the current task. Keep one library per domain. A JobBench library still lifted WorkBuddy-Bench by 0.5 to 2.9 points, but this page's advice is to rank same-domain entries first.
 
-**What to measure.** The share of edited files that came from an entry (22% to 47% in Appendix E.2), the gain from library-only edits with no probes, and a leave-one-out check like the paper's, which found +1.9 on WorkBuddy-Bench and +1.7 on JobBench.
+**What to measure.** The share of edited files that show library provenance (22% to 47% in Appendix E.2), the gain from library-only edits with no probes, and a leave-one-out check like the paper's, which found +1.9 on WorkBuddy-Bench and +1.7 on JobBench.
 
 **What breaks.** The paper never prunes, so the index grows until search returns noise. Stale entries cite tools that changed. One poisoned entry can reach many tasks, so admission needs provenance and review.
 
@@ -205,15 +207,15 @@ The paper ran on its authors' own infrastructure. These mappings are this page's
 
 **Observability and safety.** Foundry tracing uses OpenTelemetry and sends spans to Application Insights. Tag each span with task ID, step, and role. The Task Completion evaluator, in preview, gives a pass or fail on whether a deliverable meets the request. Use it as a second opinion beside the selector, not as ground truth. Prompt Shields' document attack detection is off by default, so turn it on for evidence files and library text. [Observability](../04-azure/observability.md) and [cost optimization](../04-azure/cost-optimization.md) cover alerts and token budgets.
 
-**The managed alternative.** The Foundry agent optimizer improves instructions, skills, tool descriptions, and model choice for hosted agents, scored against a dataset and evaluators you supply. Use it when you have an evaluation set, and the contrastive step when you don't.
+**The managed alternative.** The Foundry agent optimizer improves instructions, skills, tool descriptions, and model choice for hosted agents, scored offline against a task dataset and evaluators. Use it when you have an evaluation set, and the contrastive step when you don't.
 
 ## Interview tips
 
-**Bring it up when asked how the agent improves.** "I'd freeze the model and improve the harness. On a hard task I'd run it once, have two editors propose an invariant edit and a domain edit, run both, and compose, with keeping the old harness as a valid outcome. Lessons the runs support go into a searchable library. Harness² got up to 11.5 points from one step at roughly 6× to 8× the tokens, so I'd route only hard tasks there." That names the mechanism, the evidence, and the cost.
+**Bring it up when asked how the agent improves.** "I'd freeze the model and improve the harness. On a hard task I'd run it once, have two editors propose an invariant edit and a domain edit, run both, and compose, with keeping the old harness as a valid outcome. Lessons the runs support go into a searchable library. Harness² got up to 11.5 points from one step, at up to roughly 6× to 8× the tokens, so I'd route only hard tasks there." That names the mechanism, the evidence, and the cost.
 
 **Traps to avoid.**
 
-- **Saying the probes verify correctness.** They show behavior. The paper says so, and its worst regressions came from a confident selector or a shared wrong premise.
+- **Saying the probes verify correctness.** They show behavior. The paper says so. Its largest regressions came from the selector picking a weaker deliverable, and a shared wrong premise cost 2 to 11 points.
 - **Saying the model learns.** The weights never change. Only the harness and the library do.
 - **Saying the next task inherits the last harness.** Each task restarts from $\mathcal{H}_0$ and reuses library entries on purpose.
 - **Skipping the cost.** Quote the multiples as approximate chart readings, and say which tasks justify them.
@@ -225,7 +227,7 @@ The paper ran on its authors' own infrastructure. These mappings are this page's
 - **Parallel or sequential?** Parallel for latency, sequential when each step should build on the last. Appendix F says parallelism lowers latency, not compute.
 - **What about side effects?** Probe against dry-run tools or a staging tenant. Only the final run touches real systems.
 - **How does the library stay healthy?** Admission needs evidence, entries carry provenance, and a periodic job retires stale ones. The paper leaves pruning to future work.
-- **How is this different from an optimizer?** Meta-Harness and the Foundry agent optimizer need a scored dataset and ship one harness. Harness² needs no answers and adapts per task, at the price of extra runs.
+- **How is this different from an optimizer?** Meta-Harness and the Foundry agent optimizer need a task dataset and evaluators, run offline, and ship one harness. Harness² needs no answers and adapts per task, at the price of extra runs.
 
 ## Further reading
 
