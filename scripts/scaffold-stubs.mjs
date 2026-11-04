@@ -3,15 +3,6 @@ import {resolve, basename} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {parseCurriculum, sectionHeadings} from './curriculum.mjs';
 
-const descriptions = [
-  'Learn the vocabulary and constraints behind a system design.',
-  'Understand the components that store, move, and serve data.',
-  'Combine building blocks to solve recurring design problems.',
-  'Choose Azure services and design for reliability, security, and cost.',
-  'Reason about coordination, global systems, and AI workloads.',
-  'Apply the curriculum to complete designs with explicit trade-offs.',
-];
-
 function pageTitle(slug) {
   const names = {
     api: 'API', ai: 'AI', azure: 'Azure', cap: 'CAP', cdn: 'CDN',
@@ -24,9 +15,6 @@ function pageTitle(slug) {
 
 export function scaffold(root) {
   const levels = parseCurriculum(readFileSync(resolve(root, 'CONTRIBUTING.md'), 'utf8'));
-  const templates = Object.fromEntries(['concept', 'case-study'].map((name) => [
-    name, sectionHeadings(readFileSync(resolve(root, `templates/${name}.md`), 'utf8')),
-  ]));
   let created = 0;
   let skipped = 0;
   function createMissing(path, content) {
@@ -47,11 +35,11 @@ export function scaffold(root) {
       link: {
         type: 'generated-index',
         slug: `/${basename(level.folder)}`,
-        description: descriptions[level.number - 1],
+        description: level.description,
       },
     }, null, 2)}\n`);
 
-    const headings = templates[level.number === 6 ? 'case-study' : 'concept'];
+    const headings = sectionHeadings(readFileSync(resolve(root, `templates/${level.template}.md`), 'utf8'));
     for (const {slug, position} of level.pages) {
       const title = pageTitle(slug);
       createMissing(`${level.folder}/${slug}.md`, [

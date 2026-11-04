@@ -4,6 +4,36 @@ import {mathFromMarkdown} from 'mdast-util-math';
 import {gfmTable} from 'micromark-extension-gfm-table';
 import {gfmTableFromMarkdown} from 'mdast-util-gfm-table';
 
+const levelRules = {
+  'docs/01-fundamentals': {
+    description: 'Learn the vocabulary and constraints behind a system design.',
+  },
+  'docs/02-building-blocks': {
+    description: 'Understand the components that store, move, and serve data.',
+  },
+  'docs/03-patterns': {
+    description: 'Combine building blocks to solve recurring design problems.',
+  },
+  'docs/04-azure': {
+    description: 'Choose Azure services and design for reliability, security, and cost.',
+    linksToAnyLevel: true,
+    linkedFromAnyLevel: true,
+  },
+  'docs/05-advanced': {
+    description: 'Reason about coordination, global systems, and AI workloads.',
+  },
+  'docs/06-case-studies': {
+    description: 'Apply the curriculum to complete designs with explicit trade-offs.',
+    template: 'case-study',
+    linksToAnyLevel: true,
+  },
+  'docs/07-papers': {
+    description: 'Break down influential papers and articles, then apply their ideas to real problems.',
+    template: 'paper',
+    linksToAnyLevel: true,
+  },
+};
+
 export function parseMarkdown(source, {tables = true} = {}) {
   return fromMarkdown(source, {
     extensions: [math(), ...(tables ? [gfmTable()] : [])],
@@ -31,6 +61,10 @@ export function parseCurriculum(source) {
         number,
         label,
         folder,
+        template: 'concept',
+        linksToAnyLevel: false,
+        linkedFromAnyLevel: false,
+        ...levelRules[folder],
         pages: slugs.map((slug, index) => ({slug, position: index + 1})),
       };
     });
@@ -53,15 +87,21 @@ export function markdownSections(source, document = parseMarkdown(source)) {
     const section = ancestors.pop();
     section.body = lines.slice(section.line, end);
   };
+  const noteOpening = (text) => {
+    const current = ancestors.at(-1);
+    if (current && current.opening === null) current.opening = text;
+  };
   for (const node of document.children) {
     const index = node.position.start.line - 1;
+    const text = lines.slice(index, node.position.end.line).join('\n').trim();
     if (node.type === 'heading') {
       const heading = lines[index].match(/^ {0,3}(#{2,4})[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/);
       if (heading) {
         const depth = heading[1].length;
         while (ancestors.length && ancestors.at(-1).depth >= depth) closeSection(index);
+        noteOpening(text);
         const section = {
-          heading: heading[2], depth, line: index + 1, body: [], children: [], paragraphs: [],
+          heading: heading[2], depth, line: index + 1, body: [], children: [], paragraphs: [], opening: null,
         };
         if (depth === 2) {
           sections.push(section);
@@ -74,8 +114,8 @@ export function markdownSections(source, document = parseMarkdown(source)) {
         continue;
       }
     }
+    if (!(node.type === 'html' && text.startsWith('<!--'))) noteOpening(text);
     if (node.type === 'paragraph') {
-      const text = lines.slice(index, node.position.end.line).join('\n').trim();
       for (const ancestor of ancestors) ancestor.paragraphs.push(text);
     }
   }

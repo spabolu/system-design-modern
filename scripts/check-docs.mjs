@@ -155,10 +155,35 @@ const caseStudySectionRules = {
   },
 };
 
+const paperSectionRules = {
+  'Why it matters'(section, report) {
+    if (!section.opening?.startsWith('**Source.**')) {
+      report(section, 'Section "## Why it matters" must open with a paragraph starting with **Source.**, before any list, code block, or subsection.');
+    }
+  },
+  'Applied use cases'(section, report) {
+    const useCases = section.children.filter(({depth}) => depth === 3);
+    if (useCases.length < 2) {
+      report(section, 'Section "## Applied use cases" needs at least two ### headings.');
+    }
+    for (const useCase of useCases) {
+      if (!sectionContent(useCase.body).text) {
+        report(useCase, `Use case "### ${useCase.heading}" needs non-empty body text.`);
+      }
+    }
+  },
+};
+
+const templateRules = {
+  concept: {diagramSections: ['How it works'], sectionRules: {}},
+  'case-study': {diagramSections: ['On Azure'], sectionRules: caseStudySectionRules},
+  paper: {diagramSections: ['How it works'], sectionRules: paperSectionRules},
+};
+
 export function checkDoc({
-  path, source, expectedPosition, expectedHeadings, diagramSections = [],
-  pageType = 'concept', document,
+  path, source, expectedPosition, expectedHeadings, template = 'concept', document,
 }, {strict = false} = {}) {
+  const {diagramSections, sectionRules} = templateRules[template];
   const diagnostics = [];
   const frontMatter = source.match(frontMatterPattern);
   let metadata = {};
@@ -223,8 +248,8 @@ export function checkDoc({
     if (diagramSections.includes(section.heading) && !content.mermaid) {
       diagnostics.push(error(path, section.line, `Section "## ${section.heading}" needs a Mermaid fence (\`\`\`mermaid).`));
     }
-    if (pageType === 'case-study' && headingsMatch) {
-      caseStudySectionRules[section.heading]?.(section,
+    if (headingsMatch) {
+      sectionRules[section.heading]?.(section,
         (heading, message) => diagnostics.push(error(path, heading.line, message)));
     }
   }
@@ -236,7 +261,7 @@ export async function checkProject({registrySource, files}, {strict = false} = {
   const diagnostics = [];
   const diagrams = [];
   const templates = new Map();
-  for (const name of ['concept', 'case-study']) {
+  for (const name of Object.keys(templateRules)) {
     const path = `templates/${name}.md`;
     const template = files.get(path);
     if (!template || sectionHeadings(template).length === 0) {
@@ -278,7 +303,7 @@ export async function checkProject({registrySource, files}, {strict = false} = {
     const document = parseMarkdown(source);
     visit(document);
     if (!path.startsWith('docs/')) continue;
-    if (level && level.number !== 6 && level.folder !== 'docs/04-azure') {
+    if (level && !level.linksToAnyLevel) {
       for (const link of links) {
         const url = link.url ?? definitions.get(link.identifier);
         if (!url || /^(?:[a-z][a-z\d+.-]*:|\/)/i.test(url)) continue;
@@ -286,7 +311,7 @@ export async function checkProject({registrySource, files}, {strict = false} = {
         if (!destination.endsWith('.md')) continue;
         const targetPath = posix.join(posix.dirname(path), destination);
         const target = levels.find(({folder}) => targetPath.startsWith(`${folder}/`));
-        if (target && target.folder !== 'docs/04-azure' && target.order > level.order) {
+        if (target && !target.linkedFromAnyLevel && target.order > level.order) {
           diagnostics.push(error(path, link.position.start.line,
             `Link to "${url}" goes to a higher curriculum level (${target.label}).`));
         }
@@ -295,14 +320,12 @@ export async function checkProject({registrySource, files}, {strict = false} = {
     if (/^docs\/\d{2}-[^/]+\//.test(path) && !registry.has(path)) {
       diagnostics.push(error(path, 1, 'Doc file is not registered in the curriculum.'));
     }
-    const templateName = level?.number === 6 ? 'case-study' : 'concept';
     diagnostics.push(...checkDoc({
       path,
       source,
       expectedPosition: registry.get(path),
-      expectedHeadings: level ? templates.get(templateName) : undefined,
-      diagramSections: level?.number === 6 ? ['On Azure'] : ['How it works'],
-      pageType: templateName,
+      expectedHeadings: level ? templates.get(level.template) : undefined,
+      template: level?.template,
       document,
     }, {strict}));
   }
