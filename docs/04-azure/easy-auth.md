@@ -33,10 +33,10 @@ sequenceDiagram
     B->>EA: GET /.auth/login/aad
     EA-->>B: 302 to Entra sign-in
     B->>IDP: user signs in
-    IDP-->>B: 302 to /.auth/login/aad/callback
+    IDP-->>B: redirect to /.auth/login/aad/callback
     B->>EA: callback with code and ID token
     EA->>IDP: redeem code with client secret
-    IDP-->>EA: ID, access, and refresh tokens
+    IDP-->>EA: ID and access tokens, plus a refresh token with offline_access
     EA-->>B: session cookie, 302 back to /orders
     B->>EA: GET /orders with session cookie
     EA->>APP: GET /orders plus X-MS-CLIENT-PRINCIPAL headers
@@ -72,7 +72,7 @@ A 302 on an API is a common mistake. The caller gets an HTML sign-in page instea
 
 **Require authentication** covers every path, including a public home page or a `/health` probe. To leave some paths open, list them in `globalValidation.excludedPaths` in the `authsettingsV2` configuration or the auth config file. The CLI flag is `az webapp auth update --excluded-paths`.
 
-**Allow unauthenticated access** is the right choice when you want a public landing page or several sign-in providers. The portal has no built-in provider picker, so you add a link per provider (`/.auth/login/aad`, `/.auth/login/google`, `/.auth/login/github`) and protect the private pages in code.
+**Allow unauthenticated access** is the right choice when you want a public landing page or several sign-in providers. The portal has no built-in provider picker, so you add a link per provider (`/.auth/login/aad`, `/.auth/login/google`, `/.auth/login/x`) and protect the private pages in code.
 
 ### What your code receives
 
@@ -97,7 +97,9 @@ function currentUser(req) {
     id: req.headers['x-ms-client-principal-id'],
     name: req.headers['x-ms-client-principal-name'],
     provider: principal.auth_typ,
-    roles: principal.claims.filter((c) => c.typ === principal.role_typ).map((c) => c.val),
+    roles: principal.claims
+      .filter((c) => c.typ === 'roles' || c.typ === principal.role_typ)
+      .map((c) => c.val),
   };
 }
 ```
@@ -128,7 +130,7 @@ A service calling your API with no user takes a third path. It gets an Entra acc
 
 ### Sessions and the token store
 
-The authenticated session expires after 8 hours. A 72-hour grace period follows, in which a call to `/.auth/refresh` renews the session without a new sign-in. After that the user signs in again. You can lengthen the grace period with `az webapp auth update --token-refresh-extension-hours`, but a longer window means a stolen session token stays useful longer.
+The authenticated session expires after 8 hours. A 72-hour grace period follows, in which a call to `/.auth/refresh` renews the session without a new sign-in. After that the user signs in again. You can lengthen the grace period with the `login.tokenStore.tokenRefreshExtensionHours` setting in `authsettingsV2`, but a longer window means a stolen session token stays useful longer.
 
 The token store keeps the provider's ID, access, and refresh tokens for each session, readable only by that user. Turn it on when your code calls APIs as the user. On App Service it uses the file system by default and can point at a Blob Storage container through a SAS URL kept in an app setting. On Container Apps, a Blob Storage container is how you turn it on.
 
@@ -190,7 +192,7 @@ To call Azure resources *as the app*, use a [managed identity](https://learn.mic
 
 **SLA scope.** The Well-Architected Framework names Easy Auth as an App Service feature that the App Service SLA doesn't financially back. If sign-in is on your critical path, measure it as its own SLI.
 
-**When not to use it.** Skip Easy Auth when you need sign-in to work in local runs and tests, when you need incremental consent or in-app Conditional Access handling, when your app runs on a host that doesn't offer it (AKS or VMs), or when the front end is a static site. For a static site, Static Web Apps has its own built-in auth (below).
+**When not to use it.** Skip Easy Auth when you need sign-in to work in local runs and tests, when you need incremental consent or in-app Conditional Access handling, when your app runs on a host that doesn't offer it (AKS or VMs), or when the front end is a static site you host on Static Web Apps, which has its own built-in auth (below).
 
 ## On Azure
 
@@ -224,7 +226,7 @@ For any other provider, register an app with that provider using the redirect UR
 
 **Gotcha: Front Door or another reverse proxy.** Easy Auth can build the redirect URI from the App Service host name instead of the Front Door host, which sends users around Front Door after sign-in. Set `httpSettings.forwardProxy.convention` to `Standard` so it reads `X-Forwarded-Host`. Application Gateway and other proxies can need the `Custom` convention with their own header names. The portal can't change this setting, so use `az rest` against `authsettingsV2` or `az webapp auth update --proxy-convention`. Also turn off Front Door caching for the sign-in flow, and register the Front Door host name in the provider's redirect URIs.
 
-**Gotcha: replace the client secret.** The secret expires and can leak. For workforce tenants, give the app a user-assigned managed identity used only for this, add a federated identity credential to the app registration, and point the provider's client secret setting at `OVERRIDE_USE_MI_FIC_ASSERTION_CLIENTID`. Until then, keep the secret in [Key Vault](./networking-and-security.md) through a Key Vault reference.
+**Gotcha: replace the client secret.** The secret expires and can leak. For workforce tenants, give the app a user-assigned managed identity used only for this, and add a federated identity credential for it to the app registration. Then add a slot-sticky app setting named `OVERRIDE_USE_MI_FIC_ASSERTION_CLIENTID` that holds the managed identity's client ID (not the app registration's), and set the provider's **Client secret setting name** to `OVERRIDE_USE_MI_FIC_ASSERTION_CLIENTID`. Until then, keep the secret in [Key Vault](./networking-and-security.md) through a Key Vault reference.
 
 **Gotcha: one app registration per slot.** Give each deployment slot its own app registration, so a staging change can't affect production's permissions.
 
