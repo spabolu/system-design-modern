@@ -40,6 +40,11 @@ const levels: readonly CurriculumLevel[] = [
     description: 'Work through complete designs, from requirements to an Azure architecture.',
     to: '/docs/06-case-studies',
   },
+  {
+    label: '7. Papers',
+    description: 'Break down influential papers and apply their ideas to hard problems.',
+    to: '/docs/07-papers',
+  },
 ];
 
 export default function CurriculumLevels(): ReactNode {
@@ -48,7 +53,7 @@ export default function CurriculumLevels(): ReactNode {
       <div className="container">
         <Heading as="h2" id="learning-path">Your learning path</Heading>
         <p>Start with the fundamentals. Build toward complete system designs.</p>
-        <div className="row">
+        <div className={`row ${styles.row}`}>
           {levels.map(({label, description, to}) => (
             <div className={`col col--4 ${styles.column}`} key={to}>
               <Link className={`card ${styles.card}`} to={to}>

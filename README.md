@@ -7,7 +7,7 @@ Microsoft Azure, so the designs double as practice architecting on it.
 ## Read it
 
 Read the site at <https://red-meadow-0c7d14a0f.4.azurestaticapps.net>. Start at
-[Start here](docs/intro.md) and work through the six levels in order.
+[Start here](docs/intro.md) and work through the seven levels in order.
 
 | Level | What it covers |
 | --- | --- |
@@ -17,12 +17,15 @@ Read the site at <https://red-meadow-0c7d14a0f.4.azurestaticapps.net>. Start at
 | [4. Architecting on Azure](docs/04-azure) | Service choices, the Well-Architected Framework, regions and zones, security, observability, and cost. |
 | [5. Advanced](docs/05-advanced) | Consensus, distributed transactions, clocks, CRDTs, stream processing, multi-region writes, cells, AI systems, and production AI agents. |
 | [6. Case studies](docs/06-case-studies) | Full designs, from a URL shortener to AI agents for customer support, enterprise research, and clinical notes, in the order of an interview. |
+| [7. Papers](docs/07-papers) | Breakdowns of influential papers and articles, where each idea applies, and how to discuss it in an interview. |
 
 Concept pages explain one topic each, with a diagram, its trade-offs, and how
 to build it on Azure. Case studies follow
 [Hello Interview's delivery framework](https://www.hellointerview.com/learn/system-design/in-a-hurry/delivery),
 from requirements through deep dives that climb through Bad, Good, and Great
-solutions. [Notes](blog) holds dated observations on new developments.
+solutions. Paper pages break down one paper or article each, then apply it to
+practical problems and interview follow-ups. [Notes](blog) holds dated
+observations on new developments.
 
 The explanations and diagrams are original. Topic selection and depth draw on
 [Hello Interview](https://www.hellointerview.com/learn/system-design/in-a-hurry/introduction),

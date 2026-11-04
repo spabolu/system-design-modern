@@ -17,6 +17,10 @@ const caseStudy = [
   'Core entities', 'API', 'High-level design', 'Deep dives', 'On Azure',
   'What is expected at each level', 'Further reading',
 ];
+const paper = [
+  'TL;DR', 'Why it matters', 'How it works', 'Trade-offs', 'Applied use cases', 'On Azure',
+  'Interview tips', 'Further reading',
+];
 const frontMatter = '---\ntitle: Test page\ndescription: A useful description.\nsidebar_position: 1\n---\n';
 const diagram = '\n```mermaid\nflowchart LR\n  Client --> Server\n```\n';
 
@@ -43,13 +47,25 @@ function caseStudyPage() {
     `\n## ${heading}\n\n${bodies[heading] ?? `Explanation of ${heading}.`}\n`).join('');
 }
 
+function paperPage() {
+  const bodies = {
+    'Why it matters': '**Source.** A paper, by its authors, 2007.\n\nThe problem it attacked.',
+    'How it works': `Explanation of How it works.\n${diagram}`,
+    'Applied use cases': [
+      '### Review a vendor claim\n\nRead the design paper first.',
+      '### Prepare an interview deep dive\n\nExplain the mechanism.',
+    ].join('\n\n'),
+  };
+  return frontMatter + paper.map((heading) =>
+    `\n## ${heading}\n\n${bodies[heading] ?? `Explanation of ${heading}.`}\n`).join('');
+}
+
 function check(source, options = {}) {
   return checkDoc({
     path: 'docs/01-fundamentals/first.md',
     source,
     expectedPosition: 1,
     expectedHeadings: concept,
-    diagramSections: ['How it works'],
   }, options);
 }
 
@@ -59,8 +75,17 @@ function checkCaseStudy(source) {
     source,
     expectedPosition: 1,
     expectedHeadings: caseStudy,
-    diagramSections: ['On Azure'],
-    pageType: 'case-study',
+    template: 'case-study',
+  });
+}
+
+function checkPaper(source) {
+  return checkDoc({
+    path: 'docs/07-papers/paper.md',
+    source,
+    expectedPosition: 1,
+    expectedHeadings: paper,
+    template: 'paper',
   });
 }
 
@@ -79,6 +104,7 @@ const registrySource = `## Curriculum
 | 4. Architecting on Azure | \`docs/04-azure/\` | \`azure\` |
 | 5. Advanced | \`docs/05-advanced/\` | \`advanced\` |
 | 6. Case studies | \`docs/06-case-studies/\` | \`case\` |
+| 7. Papers | \`docs/07-papers/\` | \`paper\` |
 
 ## Page templates
 `;
@@ -89,6 +115,7 @@ function project() {
     files: new Map([
       ['templates/concept.md', concept.map((heading) => `## ${heading}`).join('\n')],
       ['templates/case-study.md', caseStudy.map((heading) => `## ${heading}`).join('\n')],
+      ['templates/paper.md', paper.map((heading) => `## ${heading}`).join('\n')],
       ['docs/intro.md', `${frontMatter}\nIntroduction.\n`],
       ['docs/01-fundamentals/first.md', page()],
       ['docs/01-fundamentals/second.md', page().replace('sidebar_position: 1', 'sidebar_position: 2')],
@@ -97,13 +124,16 @@ function project() {
       ['docs/04-azure/azure.md', page()],
       ['docs/05-advanced/advanced.md', page()],
       ['docs/06-case-studies/case.md', caseStudyPage()],
+      ['docs/07-papers/paper.md', paperPage()],
     ]),
   };
 }
 
-test('complete concept and case-study pages pass', async () => {
+test('complete concept, case-study, and paper pages pass', async () => {
   assert.deepEqual(check(page()), []);
   assert.deepEqual(checkCaseStudy(caseStudyPage()), []);
+  assert.deepEqual(checkPaper(paperPage()), []);
+  assert.deepEqual(checkPaper(paperPage().replace('**Source.** A paper', '<!-- Template note. -->\n\n**Source.** A paper')), []);
   assert.deepEqual(await checkProject(project()), []);
 });
 
@@ -199,6 +229,66 @@ for (const {name, change, heading, message} of [
     assert.equal(diagnostics[0].path, 'docs/06-case-studies/case.md');
     assert.equal(diagnostics[0].line, source.split('\n').indexOf(heading) + 1);
     assert.equal(diagnostics[0].severity, 'error');
+    assert.match(diagnostics[0].message, message);
+  });
+}
+
+for (const {name, change, heading, message} of [
+  {
+    name: 'a paper needs a Source paragraph in Why it matters',
+    change: (source) => source.replace('**Source.** A paper', 'A paper'),
+    heading: '## Why it matters',
+    message: /Why it matters.*paragraph starting with \*\*Source\.\*\*/,
+  },
+  {
+    name: 'a paper opens Why it matters with its Source paragraph',
+    change: (source) => source.replace('**Source.** A paper, by its authors, 2007.\n\nThe problem it attacked.',
+      'The problem it attacked.\n\n**Source.** A paper, by its authors, 2007.'),
+    heading: '## Why it matters',
+    message: /Why it matters.*open with a paragraph starting with \*\*Source\.\*\*/,
+  },
+  {
+    name: 'a paper cannot open Why it matters with a list',
+    change: (source) => source.replace('**Source.** A paper', '- Context first.\n\n**Source.** A paper'),
+    heading: '## Why it matters',
+    message: /Why it matters.*open with a paragraph starting with \*\*Source\.\*\*/,
+  },
+  {
+    name: 'a paper cannot open Why it matters with an HTML block',
+    change: (source) => source.replace('**Source.** A paper', '<div>Context</div>\n\n**Source.** A paper'),
+    heading: '## Why it matters',
+    message: /Why it matters.*open with a paragraph starting with \*\*Source\.\*\*/,
+  },
+  {
+    name: 'a paper cannot open Why it matters with a subsection',
+    change: (source) => source.replace('**Source.** A paper', '### Context\n\n**Source.** A paper'),
+    heading: '## Why it matters',
+    message: /Why it matters.*open with a paragraph starting with \*\*Source\.\*\*/,
+  },
+  {
+    name: 'a paper needs at least two applied use cases',
+    change: (source) => source.replace('### Prepare an interview deep dive\n\nExplain the mechanism.', ''),
+    heading: '## Applied use cases',
+    message: /Applied use cases.*at least two ###/,
+  },
+  {
+    name: 'each applied use case needs a non-empty body',
+    change: (source) => source.replace('Read the design paper first.', '<!-- Write this later. -->'),
+    heading: '### Review a vendor claim',
+    message: /Review a vendor claim.*non-empty body text/,
+  },
+  {
+    name: 'a paper needs a Mermaid fence in How it works',
+    change: (source) => source.replace(diagram, ''),
+    heading: '## How it works',
+    message: /How it works.*Mermaid fence/,
+  },
+]) {
+  test(name, () => {
+    const source = change(paperPage());
+    const diagnostics = checkPaper(source);
+    assert.equal(diagnostics.length, 1, JSON.stringify(diagnostics));
+    assert.equal(diagnostics[0].line, source.split('\n').indexOf(heading) + 1);
     assert.match(diagnostics[0].message, message);
   });
 }
@@ -504,6 +594,8 @@ for (const [from, to, forbidden] of [
   ['03-patterns/pattern', '../05-advanced/advanced.md#details', true],
   ['06-case-studies/case', '../05-advanced/advanced.md', false],
   ['04-azure/azure', '../06-case-studies/case.md', false],
+  ['05-advanced/advanced', '../07-papers/paper.md', true],
+  ['06-case-studies/case', '../07-papers/paper.md', false],
   ['intro', '06-case-studies/case.md', false],
   ['03-patterns/pattern', '../01-fundamentals/first.md', false],
   ['01-fundamentals/first', 'second.md', false],
@@ -520,8 +612,11 @@ for (const [from, to, forbidden] of [
         path,
         line: source.split('\n').length + 1,
         severity: 'error',
-        message: `Link to "${to}" goes to a higher curriculum level (${
-          to.includes('02-building-blocks') ? '2. Building blocks' : '5. Advanced'}).`,
+        message: `Link to "${to}" goes to a higher curriculum level (${{
+          '02-building-blocks': '2. Building blocks',
+          '05-advanced': '5. Advanced',
+          '07-papers': '7. Papers',
+        }[to.match(/\d{2}-[a-z-]+/)[0]]}).`,
       });
     }
   });
@@ -780,7 +875,7 @@ test('CLI prints path and line diagnostics and exits according to severity', () 
     const normal = spawnSync(process.execPath, [script], {cwd: root, encoding: 'utf8'});
     assert.equal(normal.status, 0, normal.stderr);
     assert.match(normal.stdout, /docs\/01-fundamentals\/first.md:7: warning: Unfinished page/);
-    assert.match(normal.stdout, /8 docs checked: 0 errors, 1 warnings/);
+    assert.match(normal.stdout, /9 docs checked: 0 errors, 1 warnings/);
     const strict = spawnSync(process.execPath, [script, '--strict'], {cwd: root, encoding: 'utf8'});
     assert.equal(strict.status, 1, strict.stderr);
     assert.match(strict.stdout, /first.md:7: error: Unfinished page/);
@@ -795,6 +890,7 @@ test('scaffold follows the registry and never overwrites an existing file', () =
     writeFixture(root, {registrySource, files: new Map([
       ['templates/concept.md', concept.map((heading) => `## ${heading}`).join('\n')],
       ['templates/case-study.md', caseStudy.map((heading) => `## ${heading}`).join('\n')],
+      ['templates/paper.md', paper.map((heading) => `## ${heading}`).join('\n')],
     ])});
     scaffold(root);
     const path = join(root, 'docs/01-fundamentals/first.md');
@@ -803,6 +899,10 @@ test('scaffold follows the registry and never overwrites an existing file', () =
       /sidebar_position: 2/);
     assert.match(readFileSync(join(root, 'docs/06-case-studies/case.md'), 'utf8'),
       /## High-level design/);
+    assert.match(readFileSync(join(root, 'docs/07-papers/paper.md'), 'utf8'),
+      /## Trade-offs\n\n## Applied use cases\n\n## On Azure/);
+    assert.match(readFileSync(join(root, 'docs/07-papers/_category_.json'), 'utf8'),
+      /"position": 8/);
     writeFileSync(path, 'A finished page must survive.');
     const category = join(root, 'docs/01-fundamentals/_category_.json');
     writeFileSync(category, '{"label":"Custom label"}');
