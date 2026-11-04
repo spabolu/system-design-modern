@@ -16,8 +16,9 @@ The sidebar is generated from the `docs/` folders, so the folder and file names 
 | 4. Architecting on Azure | `docs/04-azure/` | `azure-service-map`, `well-architected-framework`, `regions-zones-and-resiliency`, `compute-choices`, `data-choices`, `messaging-choices`, `networking-and-security`, `easy-auth`, `observability`, `cost-optimization` |
 | 5. Advanced | `docs/05-advanced/` | `consensus-raft-paxos`, `distributed-transactions`, `time-clocks-and-ordering`, `crdts-and-local-first`, `stream-processing`, `multi-region-active-active`, `cell-based-architecture`, `ai-systems-rag-and-agents`, `llm-serving-and-inference`, `production-ai-agents` |
 | 6. Case studies | `docs/06-case-studies/` | `url-shortener`, `rate-limiter`, `news-feed`, `chat-messaging`, `ticket-booking`, `ride-sharing`, `video-streaming`, `file-sync`, `web-crawler`, `top-k-leaderboard`, `ad-click-aggregator`, `ai-chat-assistant`, `customer-support-agent`, `enterprise-research-assistant`, `clinical-scribe` |
+| 7. Papers | `docs/07-papers/` | `how-to-read-a-paper` |
 
-A page may only link to pages at its own level or below, with two exceptions. Every page may link to `04-azure`, because each `## On Azure` section points there for the service decision. Case studies and `04-azure` pages may link anywhere. This keeps the path from basics to advanced readable in order.
+A page may only link to pages at its own level or below, with two exceptions. Every page may link to `04-azure`, because each `## On Azure` section points there for the service decision. Case studies, papers, and `04-azure` pages may link anywhere. This keeps the path from basics to advanced readable in order.
 
 ## Page templates
 
@@ -55,6 +56,17 @@ A case study (level 6) follows Hello Interview's [delivery framework](https://ww
 8. `## On Azure`. The final design on Azure. A Mermaid diagram labelled with Azure service names, plus a table mapping each component to its service.
 9. `## What is expected at each level`. Exactly `### Mid-level`, `### Senior`, and `### Staff+`, in that order.
 10. `## Further reading`
+
+A paper page (level 7) breaks down one paper or article. It explains the idea, shows where it applies, and prepares the reader to discuss it in an interview. It has these `##` sections, in this order.
+
+1. `## TL;DR`. Three to five bullets: the problem, the core idea, and why it still matters.
+2. `## Why it matters`. Opens with a paragraph that starts with `**Source.**` and gives the title, authors, venue or publication, year, and a link. Then the problem the work attacked and what made it hard at the time.
+3. `## How it works`. The core mechanism, step by step, with at least one Mermaid diagram.
+4. `## Trade-offs`. What the design gained and paid, what did not hold up, and what changed since.
+5. `## Applied use cases`. At least two `###` scenarios. Each is a concrete problem where the idea applies, says how to apply it, what to measure, and what breaks, and links the curriculum pages it builds on.
+6. `## On Azure`. Which Azure services implement the idea or let you apply it, and the configuration choices that matter.
+7. `## Interview tips`. How to bring the work up, common traps, and the follow-up questions to expect.
+8. `## Further reading`. The source first, then links you opened and confirmed.
 
 ## Rules
 

@@ -1,6 +1,6 @@
 ---
 title: Start here
-description: Follow a six-level system design curriculum with Azure examples and worked case studies.
+description: Follow a seven-level system design curriculum with Azure examples, worked case studies, and paper breakdowns.
 sidebar_position: 1
 ---
 
@@ -27,9 +27,12 @@ trade-offs and interview tips to check your understanding before moving on.
 6. [Case studies](./06-case-studies) applies the earlier levels to full designs.
    Start with requirements and estimates, then explain the architecture and the
    decisions that deserve a closer look.
+7. [Papers](./07-papers) breaks down influential papers and articles. Each page
+   explains the idea, shows where it applies to real problems, and prepares you
+   to discuss it in an interview.
 
 Concept pages link to their own level and earlier levels so you can read in order.
-Azure pages and case studies can draw on the whole curriculum.
+Azure pages, case studies, and paper pages can draw on the whole curriculum.
 
 ## How pages are structured
 
@@ -58,6 +61,19 @@ Case studies follow the order of a system design interview, modeled on
 - **What is expected at each level** says what a mid-level, senior, and staff+
   candidate should cover.
 - **Further reading** links to the sources.
+
+Paper pages break down one paper or article each:
+
+- **TL;DR** gives the problem, the core idea, and why it still matters.
+- **Why it matters** cites the source and explains the problem it attacked.
+- **How it works** walks through the mechanism with a Mermaid diagram.
+- **Trade-offs** names what the design gained, what it paid, and what changed since.
+- **Applied use cases** works through at least two practical problems where the
+  idea applies, with what to measure and what breaks.
+- **On Azure** connects the idea to Azure services and configuration choices.
+- **Interview tips** covers how to bring the work up, common traps, and follow-up
+  questions.
+- **Further reading** starts with the source.
 
 ## Azure is the only cloud
 
