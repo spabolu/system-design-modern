@@ -12,7 +12,7 @@ sidebar_position: 14
 - APIs validate access tokens locally: signature against the provider's published keys, then issuer, audience, and expiry, then scopes or roles. No call to the provider per request.
 - Access tokens are short-lived and refresh tokens get new ones. Shorter lifetimes revoke access faster but cost more token traffic.
 - Services authenticate to each other with platform-managed identities, not passwords in config.
-- On Azure: Microsoft Entra ID for employees and apps, Microsoft Entra External ID for customers, managed identities and workload identity federation for services, and Key Vault for the secrets you can't avoid.
+- On Azure: Microsoft Entra ID for employees and apps, Microsoft Entra External ID for customers, Easy Auth for sign-in without code on App Service, managed identities and workload identity federation for services, and Key Vault for the secrets you can't avoid.
 
 ## Why it matters
 
@@ -112,6 +112,8 @@ Secrets that remain, such as a third-party API key, go in a secrets store with a
 - **Passkeys (FIDO2)** give phishing-resistant sign-in.
 
 **Microsoft Entra External ID** is the customer identity (CIAM) product: an external tenant for consumers and business customers, with self-service sign-up, sign-in, and password reset, and sign-in with social or enterprise identities. Azure AD B2C is no longer sold to new customers as of May 1, 2025, so new consumer apps start on External ID.
+
+**Easy Auth** is the built-in authentication in App Service, Azure Functions, and Container Apps. You pick a provider such as Entra ID or External ID, and the platform runs the OIDC sign-in before a request reaches your code, then passes the user's claims in request headers. Role and ownership checks still run in your code. [Easy Auth](../04-azure/easy-auth.md) covers the request flow, the settings, and when MSAL is the better choice.
 
 **Managed identities** give Azure resources an Entra identity with no credentials to manage, at no extra cost. A system-assigned identity is tied to one resource and deleted with it. A user-assigned identity is a standalone resource you can attach to several resources, which suits a fleet of identical instances. Grant the identity a role, such as Storage Blob Data Contributor on a [storage account](./blob-storage.md), and the code gets tokens from the platform.
 
