@@ -23,7 +23,7 @@ This prompt circulates as an Anthropic interview question. That is unconfirmed, 
 
 **Below the line (out of scope)**
 
-- **Loading weights into GPU memory.** The serving framework owns that. See [LLM serving and inference](../05-advanced/llm-serving-and-inference.md).
+- **Loading weights into GPU memory.** The serving framework owns that. The downloader's only part is handing its loader the manifest so it can re-hash pieces as it reads them (deep dive 3). See [LLM serving and inference](../05-advanced/llm-serving-and-inference.md).
 - **Delta updates between versions.** Content-addressed pieces make this a follow-up, not a redesign.
 - **Several models at once.** Deep dive 4 shows what changes.
 - **Cross-region distribution.** Each region stages its own copy and runs the same design.
@@ -121,7 +121,7 @@ Host-to-coordinator and host-to-host calls are internal gRPC over mutual TLS, in
 
 1. The orchestrator starts a job, and the coordinator records it.
 2. Host agents learn about the job and fetch the signed manifest.
-3. A few seed hosts pull disjoint ranges from the repository, so each byte crosses the external link once.
+3. A few seed hosts pull disjoint ranges from the repository, so each byte normally crosses the external link once.
 4. Every host fetches missing pieces from any host that has them, verifies each, writes it, and starts serving it.
 5. Hosts report progress, and the coordinator tells the orchestrator who finished and who failed.
 
@@ -257,7 +257,7 @@ A tree looks efficient on a whiteboard and fails the upload math. The full-duple
 
 1. **Rarest first.** Hand out the chunks held by the fewest hosts, so none stays a single point of loss and every host has something others want. Bram Cohen's BitTorrent paper describes the same rule.
 2. **Rack aware.** Prefer a source in the same rack, then the same pod, so most transfers skip the oversubscribed spine.
-3. **Capacity aware.** Cap each host's concurrent transfers so neither direction passes 10 GB/s, or so sending plus receiving stays under 10 GB/s if the link is shared, and pick the least-loaded holder.
+3. **Capacity aware.** Cap each host's concurrent transfers so neither direction passes 10 GB/s, or so the two together don't pass it on a shared link, and pick the least-loaded holder.
 4. **Endgame mode.** For the last 1 to 2% of chunks, request each from several holders and keep the first copy that verifies. Cohen's paper names this too.
 
 Each chunk a host finishes makes it a new source, so senders double each round until all 1,000 hosts send and receive at once. Agents keep 8 to 32 piece requests in flight to hide round trips.
@@ -303,7 +303,7 @@ This serves requirement 3. Assume a few hosts fail in any job.
 
 #### Good solution: Leases, heartbeats, and resumable bitmaps
 
-**Approach.** Every claim is a lease with a deadline, not a lock. A seed's `claimRange` returns a block valid for 10 s, renewed by each `report`. A seed that goes quiet loses its lease, and the next seed to ask gets the unfinished chunks. A finished chunk can be lost too, when its only holders die or are quarantined before anyone copies it. The coordinator counts live holders per chunk, and a chunk that drops to zero goes back to the seed queue for another pull from the repository. Rarest first keeps that window to the first second or two. Writing a piece twice at the same offset is harmless, so retries need no cleanup. See [idempotency and retries](../03-patterns/idempotency-and-retries.md).
+**Approach.** Every claim is a lease with a deadline, not a lock. A seed's `claimRange` returns a block valid for 10 s, renewed by each `report`. A seed that goes quiet loses its lease, and the next seed to ask gets the unfinished chunks. A finished chunk can be lost too, when every host holding it dies or is quarantined. The coordinator counts live holders per chunk, and a chunk that drops to zero goes back into the chunks `claimRange` hands out, for another pull from the repository. Rarest first copies each new chunk within a second or two of its pull, so that window stays short. Writing a piece twice at the same offset is harmless, so retries need no cleanup. See [idempotency and retries](../03-patterns/idempotency-and-retries.md).
 
 Each agent persists its bitmap next to the partial file, and records a bit only after that piece's bytes are synced to disk, so a restarted host can trust its bitmap and asks only for what it lacks. A host that misses 4 heartbeats, one second of silence, drops out of every source list. A requester switches source after a short timeout, and repository errors get backoff with jitter. See [resilience patterns](../03-patterns/resilience-patterns.md).
 
@@ -369,7 +369,7 @@ This serves requirement 4. Bad bytes come from NICs, disks, buggy peers, or tamp
 
 #### Great solution: A signed manifest, a Merkle root, verify before serving, and an atomic rename
 
-**Approach.** At publish time, build a Merkle tree over the piece hashes. Then sign one digest that covers the model version, total size, piece size, the offset of every chunk, and the root, with a key only the publishing pipeline can use. Agents ship with the public key. A host checks the signature, checks that the signed version is the one the job asked for, so an old manifest can't be replayed, then checks that the 125,000 piece hashes, about 4 MB, reproduce the root. Because every host fetches the whole list, a signed SHA-256 of the whole manifest would work too. The tree earns its place when a host checks pieces with short proofs before it holds the full list. No peer or coordinator can change what "correct" means after that, and every piece follows one rule.
+**Approach.** At publish time, build a Merkle tree over the piece hashes. Then sign one digest with a key only the publishing pipeline can use. The digest covers the model version, total size, piece size, the offset of every chunk, and the root. Agents ship with the public key. A host checks the signature, checks that the signed version is the one the job asked for, so an old manifest can't be replayed, then checks that the 125,000 piece hashes, about 4 MB, reproduce the root. Because every host fetches the whole list, a signed SHA-256 of the whole manifest would work too. The tree earns its place when a host checks pieces with short proofs before it holds the full list. No peer or coordinator can change what "correct" means after those checks, and every piece follows one rule.
 
 ```mermaid
 flowchart TB
@@ -381,7 +381,7 @@ flowchart TB
   Q -->|"yes"| Quar["Coordinator quarantines sender"]
 ```
 
-After the last piece, the agent flushes, confirms every bit is set, and renames the file to its final name. A rename within one file system is atomic, so the loader sees no model or the whole verified model. Bytes can still go bad after the check, on the write or later on the disk. Peers are covered, because every receiver re-verifies what it is sent and strikes the sender. For the host's own copy, hand the loader the manifest so it re-hashes each piece as it reads it into GPU memory. That costs CPU but no extra disk pass, unlike a separate 500 GB re-read at the end, and a failed piece is refetched from a peer. Keep a sampled audit for copies that sit idle on disk.
+After the last piece, the agent flushes, confirms every bit is set, and renames the file to its final name. A rename within one file system is atomic, so the loader sees no model or the whole verified model. Bytes can still go bad after the check, on the write or later on the disk. Peers are covered, because every receiver verifies what it is sent and strikes the sender. The host's own copy is checked at load. Loading belongs to the serving framework, so the agent hands its loader the manifest, and the loader re-hashes each piece as it reads it into GPU memory. That costs CPU but no extra disk pass, unlike a separate 500 GB re-read at the end, and the agent refetches any piece that fails from a peer. Keep a sampled audit for copies that sit idle on disk.
 
 Budget the CPU. Assume one core hashes SHA-256 at about 1 GB/s, and measure it on your hardware. Then 10 GB/s of pieces needs about 10 cores per host. BLAKE3 is faster than SHA-256 on one core and, because it is a Merkle tree internally, also spreads across threads and SIMD lanes. Its authors report the multithreaded `b3sum` tool as an order of magnitude faster than `sha256sum` on typical desktop hardware. Measure its single-core rate before you count on it to save cores.
 
