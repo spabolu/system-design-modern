@@ -41,7 +41,7 @@ Before any math, I'd ask the interviewer these questions, because each one moves
 
 1. **It finishes within 2x of the bandwidth floor.** That is under 100 s if host links are full duplex and under 200 s if sending and receiving share 10 GB/s. The floor assumes perfect pipelining, so 2x leaves room for scheduling gaps and the tail.
 2. **It never exceeds 10 GB/s** on the external link or on any host. Agents enforce these as hard caps.
-3. **No single failure restarts the job.** A dead host, seed, or coordinator costs at most the pieces in flight on it. Failed hosts are dropped and reported.
+3. **No single failure restarts the job.** A dead host, seed, or coordinator costs at most the pieces in flight on it, plus a fresh pull of any chunk only it held. Failed hosts are dropped and reported.
 4. **No host ever loads a corrupted or tampered byte.** Integrity beats speed.
 5. **The same architecture runs from 100 to 10,000 hosts.** Seed counts and coordinator layout change, and the components don't.
 
@@ -253,11 +253,11 @@ A tree looks efficient on a whiteboard and fails the upload math. The full-duple
 
 #### Great solution: Disjoint seeds and a swarm with a central scheduler
 
-**Approach.** Pick about 50 seeds, two per rack if the cluster has 25 racks of 40 hosts. Give each a disjoint block of chunks and rate-limit them together to 10 GB/s, so each pulls about 200 MB/s and every chunk crosses the external link once. Within a second the cluster holds 50 different chunks to trade. Every other host pulls work when it has spare capacity and asks for sources. The coordinator ranks sources with four rules.
+**Approach.** Pick about 50 seeds, two per rack if the cluster has 25 racks of 40 hosts. Give each a disjoint block of chunks and rate-limit them together to 10 GB/s, so each pulls about 200 MB/s and every chunk normally crosses the external link once. Within a second the cluster holds 50 different chunks to trade. Every other host pulls work when it has spare capacity and asks for sources. The coordinator ranks sources with four rules.
 
 1. **Rarest first.** Hand out the chunks held by the fewest hosts, so none stays a single point of loss and every host has something others want. Bram Cohen's BitTorrent paper describes the same rule.
 2. **Rack aware.** Prefer a source in the same rack, then the same pod, so most transfers skip the oversubscribed spine.
-3. **Capacity aware.** Cap each host's concurrent transfers so neither direction passes 10 GB/s, and pick the least-loaded holder.
+3. **Capacity aware.** Cap each host's concurrent transfers so neither direction passes 10 GB/s, or so sending plus receiving stays under 10 GB/s if the link is shared, and pick the least-loaded holder.
 4. **Endgame mode.** For the last 1 to 2% of chunks, request each from several holders and keep the first copy that verifies. Cohen's paper names this too.
 
 Each chunk a host finishes makes it a new source, so senders double each round until all 1,000 hosts send and receive at once. Agents keep 8 to 32 piece requests in flight to hide round trips.
@@ -303,7 +303,7 @@ This serves requirement 3. Assume a few hosts fail in any job.
 
 #### Good solution: Leases, heartbeats, and resumable bitmaps
 
-**Approach.** Every claim is a lease with a deadline, not a lock. A seed's `claimRange` returns a block valid for 10 s, renewed by each `report`. A seed that goes quiet loses its lease, and the next seed to ask gets the unfinished chunks. Writing a piece twice at the same offset is harmless, so retries need no cleanup. See [idempotency and retries](../03-patterns/idempotency-and-retries.md).
+**Approach.** Every claim is a lease with a deadline, not a lock. A seed's `claimRange` returns a block valid for 10 s, renewed by each `report`. A seed that goes quiet loses its lease, and the next seed to ask gets the unfinished chunks. A finished chunk can be lost too, when its only holders die or are quarantined before anyone copies it. The coordinator counts live holders per chunk, and a chunk that drops to zero goes back to the seed queue for another pull from the repository. Rarest first keeps that window to the first second or two. Writing a piece twice at the same offset is harmless, so retries need no cleanup. See [idempotency and retries](../03-patterns/idempotency-and-retries.md).
 
 Each agent persists its bitmap next to the partial file, and records a bit only after that piece's bytes are synced to disk, so a restarted host can trust its bitmap and asks only for what it lacks. A host that misses 4 heartbeats, one second of silence, drops out of every source list. A requester switches source after a short timeout, and repository errors get backoff with jitter. See [resilience patterns](../03-patterns/resilience-patterns.md).
 
@@ -340,7 +340,7 @@ flowchart TB
 | Failure | Detected by | What happens |
 | --- | --- | --- |
 | Host dies mid-transfer | Missed heartbeats | Peers use other holders, and the host is marked failed |
-| Seed dies during the pull | Lease expiry | Another seed resumes the block |
+| Seed dies during the pull | Lease expiry | Another seed resumes the block, and chunks with no live holder are pulled again |
 | Slow peer | Low throughput | The requester switches, and endgame mode covers the tail |
 | Corrupt piece | Hash mismatch | Discard, refetch, strike the sender (deep dive 3) |
 | Rack loss | Many hosts silent | Other racks continue, and lost hosts go to repair |
@@ -369,7 +369,7 @@ This serves requirement 4. Bad bytes come from NICs, disks, buggy peers, or tamp
 
 #### Great solution: A signed manifest, a Merkle root, verify before serving, and an atomic rename
 
-**Approach.** At publish time, build a Merkle tree over the piece hashes and sign its root with a key only the publishing pipeline can use. Agents ship with the public key. A host checks the signature, then checks that the 125,000 piece hashes, about 4 MB, reproduce the root. Because every host fetches the whole list, a signed SHA-256 of the manifest would work too. The tree earns its place when a host checks pieces with short proofs before it holds the full list. No peer or coordinator can change what "correct" means after that, and every piece follows one rule.
+**Approach.** At publish time, build a Merkle tree over the piece hashes. Then sign one digest that covers the model version, total size, piece size, the offset of every chunk, and the root, with a key only the publishing pipeline can use. Agents ship with the public key. A host checks the signature, checks that the signed version is the one the job asked for, so an old manifest can't be replayed, then checks that the 125,000 piece hashes, about 4 MB, reproduce the root. Because every host fetches the whole list, a signed SHA-256 of the whole manifest would work too. The tree earns its place when a host checks pieces with short proofs before it holds the full list. No peer or coordinator can change what "correct" means after that, and every piece follows one rule.
 
 ```mermaid
 flowchart TB
@@ -381,7 +381,7 @@ flowchart TB
   Q -->|"yes"| Quar["Coordinator quarantines sender"]
 ```
 
-After the last piece, the agent flushes, confirms every bit is set, and renames the file to its final name. A rename within one file system is atomic, so the loader sees no model or the whole verified model. The signed root already covers every byte, so a separate whole-file hash would only add a 500 GB re-read. Keep one as an optional audit that samples pieces on disk.
+After the last piece, the agent flushes, confirms every bit is set, and renames the file to its final name. A rename within one file system is atomic, so the loader sees no model or the whole verified model. Bytes can still go bad after the check, on the write or later on the disk. Peers are covered, because every receiver re-verifies what it is sent and strikes the sender. For the host's own copy, hand the loader the manifest so it re-hashes each piece as it reads it into GPU memory. That costs CPU but no extra disk pass, unlike a separate 500 GB re-read at the end, and a failed piece is refetched from a peer. Keep a sampled audit for copies that sit idle on disk.
 
 Budget the CPU. Assume one core hashes SHA-256 at about 1 GB/s, and measure it on your hardware. Then 10 GB/s of pieces needs about 10 cores per host. BLAKE3 is faster than SHA-256 on one core and, because it is a Merkle tree internally, also spreads across threads and SIMD lanes. Its authors report the multithreaded `b3sum` tool as an order of magnitude faster than `sha256sum` on typical desktop hardware. Measure its single-core rate before you count on it to save cores.
 
@@ -476,7 +476,7 @@ Lustre wins when many hosts read different files, such as training data. For one
 flowchart TB
   Orch["Orchestrator (AKS or Slurm)"] -.->|"Entra token"| Coord["Coordinator, 3 replicas on AKS"]
   Coord -.-> COS[("Cosmos DB for NoSQL: job records")]
-  Pub["Publish job"] -.->|"sign root"| KV["Key Vault"]
+  Pub["Publish job"] -.->|"sign manifest"| KV["Key Vault"]
   Pub --> Blob[("Blob Storage via private endpoint")]
   Blob -->|"64 MB ranges"| Seeds["Seed-eligible ND H100 v5 hosts"]
   Seeds -->|"InfiniBand"| I1["Scale set 1, InfiniBand island"]
@@ -495,7 +495,7 @@ flowchart TB
 | Coordinator | AKS | Three replicas, Kubernetes Lease election |
 | Host agents | AKS DaemonSet or CycleCloud Workspace for Slurm | One per GPU host |
 | Job record | Cosmos DB for NoSQL | One item per job |
-| Signing key | Key Vault or Managed HSM | Signs the Merkle root at publish |
+| Signing key | Key Vault or Managed HSM | Signs the manifest digest at publish |
 | Identity | Managed identity and Workload ID | Blob read for seed-eligible hosts only |
 | Metrics | Managed Prometheus and Grafana | Per-host series and one chunk histogram |
 | Buy option | Dragonfly on AKS | Blob backend, CNCF graduated |
