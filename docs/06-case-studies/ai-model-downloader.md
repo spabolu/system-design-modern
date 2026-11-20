@@ -172,7 +172,7 @@ flowchart TB
 2. A seed verifies each piece against the manifest, writes it at its offset with `pwrite`, and reports finished chunks.
 3. Any other host asks which hosts hold the chunks it lacks, and requests pieces from them.
 4. Each host verifies every piece before writing it, and serves it as soon as it is on disk.
-5. When the bitmap is full, the agent checks the file against the manifest, renames `fm-7.partial` to its final name, and reports success.
+5. When the bitmap is full, every piece has passed its check, so the agent renames `fm-7.partial` to its final name and reports success.
 
 Writing at offsets into a preallocated file means there is no reassembly step. The internal calls so far are:
 
@@ -260,7 +260,7 @@ A tree looks efficient on a whiteboard and fails the upload math. The full-duple
 3. **Capacity aware.** Cap each host's concurrent transfers so neither direction passes 10 GB/s, and pick the least-loaded holder.
 4. **Endgame mode.** For the last 1 to 2% of chunks, request each from several holders and keep the first copy that verifies. Cohen's paper names this too.
 
-Each verified piece makes its holder a new source, so senders double each round until all 1,000 hosts send and receive at once. Agents keep 8 to 32 piece requests in flight to hide round trips.
+Each chunk a host finishes makes it a new source, so senders double each round until all 1,000 hosts send and receive at once. Agents keep 8 to 32 piece requests in flight to hide round trips.
 
 Chunk size trades coordinator work against pipelining. Hashes live at the 4 MB piece, so a host forwards a piece as soon as it verifies it. The coordinator tracks 64 MB chunks to keep its decisions few.
 
@@ -305,7 +305,7 @@ This serves requirement 3. Assume a few hosts fail in any job.
 
 **Approach.** Every claim is a lease with a deadline, not a lock. A seed's `claimRange` returns a block valid for 10 s, renewed by each `report`. A seed that goes quiet loses its lease, and the next seed to ask gets the unfinished chunks. Writing a piece twice at the same offset is harmless, so retries need no cleanup. See [idempotency and retries](../03-patterns/idempotency-and-retries.md).
 
-Each agent persists its bitmap next to the partial file, so a restarted host asks only for what it lacks. A host that misses 4 heartbeats, one second of silence, drops out of every source list. A requester switches source after a short timeout, and repository errors get backoff with jitter. See [resilience patterns](../03-patterns/resilience-patterns.md).
+Each agent persists its bitmap next to the partial file, and records a bit only after that piece's bytes are synced to disk, so a restarted host can trust its bitmap and asks only for what it lacks. A host that misses 4 heartbeats, one second of silence, drops out of every source list. A requester switches source after a short timeout, and repository errors get backoff with jitter. See [resilience patterns](../03-patterns/resilience-patterns.md).
 
 ```mermaid
 sequenceDiagram
@@ -324,7 +324,7 @@ sequenceDiagram
 
 #### Great solution: A replicated coordinator with small state, and hosts that keep trading
 
-**Approach.** Make the coordinator cheap to replace. Run one leader and two standbys, elected through a lease of their own. Persist only what can't be rebuilt, the job record, host set, and failed hosts, a few tens of kilobytes. Each host's bitmap on its own disk is the source of truth, so a new leader asks every agent for it and rebuilds the 1 MB map in about a second. Every write carries the leader's epoch, so a deposed leader that wakes up can't overwrite the new one. See [consensus with Raft and Paxos](../05-advanced/consensus-raft-paxos.md).
+**Approach.** Make the coordinator cheap to replace. Run one leader and two standbys, elected through a lease of their own. Persist only what can't be rebuilt, the job record, host set, and failed hosts, a few tens of kilobytes. Each host's bitmap on its own disk is the source of truth, so a new leader asks every agent for it and rebuilds the 1 MB map in about a second. Every write carries the leader's epoch, and the job store and agents reject any epoch lower than the highest they have seen, so a deposed leader that wakes up can't overwrite the new one. See [consensus with Raft and Paxos](../05-advanced/consensus-raft-paxos.md).
 
 Agents cache their source lists. While the coordinator is down, hosts keep trading with peers they know, and only new leases and fresh sources pause.
 
@@ -369,7 +369,7 @@ This serves requirement 4. Bad bytes come from NICs, disks, buggy peers, or tamp
 
 #### Great solution: A signed manifest, a Merkle root, verify before serving, and an atomic rename
 
-**Approach.** At publish time, build a Merkle tree over the piece hashes and sign its root with a key only the publishing pipeline can use. Agents ship with the public key. A host checks the signature, then checks that the 125,000 piece hashes, about 4 MB, reproduce the root. No peer or coordinator can change what "correct" means after that. Every piece then follows one rule.
+**Approach.** At publish time, build a Merkle tree over the piece hashes and sign its root with a key only the publishing pipeline can use. Agents ship with the public key. A host checks the signature, then checks that the 125,000 piece hashes, about 4 MB, reproduce the root. No peer or coordinator can change what "correct" means after that. Because every host fetches the whole list, a signed SHA-256 of the manifest would work too. The tree earns its place once a host checks pieces with short proofs before it holds the full list. Every piece then follows one rule.
 
 ```mermaid
 flowchart TB
@@ -383,7 +383,7 @@ flowchart TB
 
 After the last piece, the agent flushes, confirms every bit is set, and renames the file to its final name. A rename within one file system is atomic, so the loader sees no model or the whole verified model. The signed root already covers every byte, so a separate whole-file hash would only add a 500 GB re-read. Keep one as an optional audit that samples pieces on disk.
 
-Budget the CPU. Assume one core hashes SHA-256 at about 1 GB/s, and measure it on your hardware. Then 10 GB/s of pieces needs about 10 cores per host. BLAKE3 is a Merkle tree internally and parallelizes across threads and SIMD lanes, and its authors call it an order of magnitude faster than `sha256sum` on typical desktop hardware, so it is the swap if cores run short.
+Budget the CPU. Assume one core hashes SHA-256 at about 1 GB/s, and measure it on your hardware. Then 10 GB/s of pieces needs about 10 cores per host. BLAKE3 is faster than SHA-256 on one core and, because it is a Merkle tree internally, also spreads across threads and SIMD lanes. Its authors report the multithreaded `b3sum` tool as an order of magnitude faster than `sha256sum` on typical desktop hardware. Measure its single-core rate before you count on it to save cores.
 
 **Challenges.** Signing adds a key to guard and a publish step before any job. Strikes need care, because a host with a bad NIC can look malicious. And verification proves the bytes match the manifest, not that the model is good.
 
@@ -453,7 +453,7 @@ The front end matches the interview's given, and uncapped inbound puts you in th
 
 **Model staging.** Stage each version in Azure Blob Storage in the cluster's region, the regional cache from deep dive 4, behind a private endpoint on the Microsoft backbone ([private endpoints](https://learn.microsoft.com/azure/storage/common/storage-private-endpoints)). Seeds read with ranged Get Blob calls ([Get Blob](https://learn.microsoft.com/rest/api/storageservices/get-blob)). A standard general-purpose v2 account in the listed major regions defaults to 200 Gbps of egress, 50 Gbps elsewhere, with increases on request ([account targets](https://learn.microsoft.com/azure/storage/common/scalability-targets-standard-account)). That is 25 GB/s, so the external floor drops to $500\ \text{GB} \div 25\ \text{GB/s} = 20\ \text{s}$. A single block blob targets up to 3,000 requests a second ([blob targets](https://learn.microsoft.com/azure/storage/blobs/scalability-targets)). At 25 GB/s, 4 MiB ranges would need about 6,000 a second, so seeds read 64 MB chunks, about 390 a second. Azure Machine Learning registries can catalog versions and replicate them across regions ([registries](https://learn.microsoft.com/azure/machine-learning/how-to-manage-registries)), but seeds still read Blob.
 
-**Buy instead of build.** Dragonfly is a CNCF project, accepted in 2018 and graduated on October 28, 2025 ([CNCF](https://www.cncf.io/projects/dragonfly/)). Its scheduler picks the best parents for each download, seed peers act as roots, and a peer on each node uploads and downloads ([Dragonfly docs](https://d7y.io/docs/)). It installs on Kubernetes with Helm ([quick start](https://d7y.io/docs/getting-started/quick-start/kubernetes/)), and CNCF lists Azure Blob Storage among its backends, with an example where a 130 GB model on 200 nodes cuts origin traffic from 26 TB to about 130 GB ([CNCF blog](https://www.cncf.io/blog/2026/04/06/peer-to-peer-acceleration-for-ai-model-distribution-with-dragonfly/)). Azure Container Registry caps layers at 195 GiB ([ACR tiers](https://learn.microsoft.com/azure/container-registry/container-registry-skus)), so a 500 GB OCI artifact needs at least three layers. I'd build the coordinator in the interview and run Dragonfly in production unless the InfiniBand layout needs a custom scheduler.
+**Buy instead of build.** Dragonfly is a CNCF project, accepted in 2018 and graduated on October 28, 2025 ([CNCF](https://www.cncf.io/projects/dragonfly/)). Its scheduler picks the best parents for each download, seed peers act as roots, and a peer on each node uploads and downloads ([Dragonfly docs](https://d7y.io/docs/)). It installs on Kubernetes with Helm ([quick start](https://d7y.io/docs/getting-started/quick-start/kubernetes/)), and a post on the CNCF blog lists Azure Blob Storage among its backends, with an example where a 130 GB model on 200 nodes cuts origin traffic from 26 TB to about 130 GB ([CNCF blog](https://www.cncf.io/blog/2026/04/06/peer-to-peer-acceleration-for-ai-model-distribution-with-dragonfly/)). Azure Container Registry caps layers at 195 GiB ([ACR tiers](https://learn.microsoft.com/azure/container-registry/container-registry-skus)), so a 500 GB OCI artifact needs at least three layers. I'd build the coordinator in the interview and run Dragonfly in production unless the InfiniBand layout needs a custom scheduler.
 
 **A shared file system instead.** Azure Managed Lustre imports from Blob ([Blob integration](https://learn.microsoft.com/azure/azure-managed-lustre/blob-integration)) and mounts in AKS through a CSI driver ([overview](https://learn.microsoft.com/azure/azure-managed-lustre/amlfs-overview)). Its top tier is 500 MBps per TiB, with a 128 TiB default maximum and up to 1,024 TiB ([create a file system](https://learn.microsoft.com/azure/azure-managed-lustre/create-file-system-portal)). Throughput comes with capacity, and every host reading its own copy reads 500 TB.
 
@@ -466,9 +466,9 @@ $$
 
 Lustre wins when many hosts read different files, such as training data. For one file onto every host, peer-to-peer wins, because every new copy adds bandwidth.
 
-**Orchestration and state.** AKS supports GPU node pools ([GPU nodes](https://learn.microsoft.com/azure/aks/gpu-cluster)), and the agent runs as a DaemonSet. Slurm shops can use Azure CycleCloud Workspace for Slurm ([CCWS](https://learn.microsoft.com/azure/cyclecloud/overview-ccws)) and run the agent as a system service. AKS documents InfiniBand only for GB200 and GB300 sizes, in preview ([Grace Blackwell on AKS](https://learn.microsoft.com/azure/aks/use-grace-blackwell-series-gpus)), so confirm it for H100 node pools before you plan around it and fall back to the front end. The coordinator runs as three replicas that elect a leader with a Kubernetes Lease, the object kubelets use for heartbeats ([Leases](https://kubernetes.io/docs/concepts/architecture/leases/)). The job record goes in Azure Cosmos DB for NoSQL, well under the 2 MB item limit ([limits](https://learn.microsoft.com/azure/cosmos-db/concepts-limits)).
+**Orchestration and state.** AKS supports GPU node pools ([GPU nodes](https://learn.microsoft.com/azure/aks/gpu-cluster)), and the agent runs as a DaemonSet. Slurm shops can use Azure CycleCloud Workspace for Slurm ([CCWS](https://learn.microsoft.com/azure/cyclecloud/overview-ccws)) and run the agent as a system service. AKS manages InfiniBand only for GB200 and GB300 sizes, in preview ([Grace Blackwell on AKS](https://learn.microsoft.com/azure/aks/use-grace-blackwell-series-gpus)). On H100 node pools you install the NVIDIA Network Operator yourself ([RDMA over InfiniBand on AKS](https://azure.github.io/aks-rdma-infiniband/)), so test it before you plan around it and keep the front end as the fallback. The coordinator runs as three replicas that elect a leader with a Kubernetes Lease, the object kubelets use for heartbeats ([Leases](https://kubernetes.io/docs/concepts/architecture/leases/)). The job record goes in Azure Cosmos DB for NoSQL, well under the 2 MB item limit ([limits](https://learn.microsoft.com/azure/cosmos-db/concepts-limits)).
 
-**Security.** Grant Storage Blob Data Reader ([storage roles](https://learn.microsoft.com/azure/role-based-access-control/built-in-roles/storage)) on the model container only to the managed identity of a seed-eligible host group, so most hosts never hold storage access. Pods get Microsoft Entra tokens through Workload ID ([Workload ID](https://learn.microsoft.com/azure/aks/workload-identity-overview)). Azure Key Vault holds the signing key and signs a digest with ES256, RS256, or PS256 ([Sign](https://learn.microsoft.com/rest/api/keyvault/keys/sign/sign)), once per version, and hosts verify locally. Use Managed HSM if policy requires FIPS 140-3 Level 3 ([Managed HSM](https://learn.microsoft.com/azure/key-vault/managed-hsm/overview)).
+**Security.** Grant Storage Blob Data Reader ([storage roles](https://learn.microsoft.com/azure/role-based-access-control/built-in-roles/storage)) on the model container only to the managed identity of a seed-eligible host group, so most hosts never hold storage access. Pods get Microsoft Entra tokens through Workload ID ([Workload ID](https://learn.microsoft.com/azure/aks/workload-identity-overview)). Azure Key Vault holds the signing key and signs a digest with ES256, RS256, or PS256 ([Sign](https://learn.microsoft.com/rest/api/keyvault/keys/sign/sign)), once per version, and hosts verify locally. A Key Vault Premium HSM-backed key already sits on FIPS 140-3 Level 3 validated HSMs. Use Managed HSM if policy also requires a single-tenant HSM ([Managed HSM](https://learn.microsoft.com/azure/key-vault/managed-hsm/overview)).
 
 **Observability.** Agents export to Azure Monitor managed service for Prometheus ([overview](https://learn.microsoft.com/azure/azure-monitor/metrics/prometheus-metrics-overview)) with Azure Managed Grafana dashboards ([overview](https://learn.microsoft.com/azure/managed-grafana/overview)). A workspace defaults to 1 million active time series ([limits](https://learn.microsoft.com/azure/azure-monitor/service-limits)), and one series per chunk per host would be 7.8 million. So agents emit per-host progress, and the coordinator emits one histogram of how many hosts hold each chunk. See [observability](../04-azure/observability.md).
 
@@ -502,7 +502,7 @@ flowchart TB
 
 ### Why these choices
 
-- **Blob over a shared file system.** Blob serves the one pull per version at 25 GB/s, and peers multiply it. Lustre needs a petabyte provisioned to get close.
+- **Blob over a shared file system.** Blob serves the one pull per version at 25 GB/s, and peers multiply it. Even the largest 500 MBps/TiB Lustre file system, about a petabyte, takes about 16 minutes to give every host its own copy.
 - **Hosts hold their own progress.** NVMe disks are temporary storage, and data might be lost on maintenance, redeploy, or stop ([temporary disk](https://learn.microsoft.com/azure/virtual-machines/managed-disks-overview)). A host that comes back empty reports an empty bitmap and rejoins.
 
 ### Gotcha
